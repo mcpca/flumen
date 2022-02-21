@@ -3,30 +3,43 @@ from torch import nn
 
 
 class CausalFlowModel(nn.Module):
-
     def __init__(self, state_dim, control_dim, control_rnn_size):
         super(CausalFlowModel, self).__init__()
 
-        self.u_rnn = RecurrentNet(in_size=control_dim, out_size=state_dim)
-        self.u_dnn = SimpleNet(in_size=1 + self.u_rnn.out_size,
-                               out_size=state_dim)
-        self.x_dnn = SimpleNet(in_size=1 + state_dim, out_size=state_dim)
+        self.u_rnn = RecurrentNet(in_size=control_dim,
+                                  out_size=state_dim,
+                                  hidden_size=control_rnn_size)
 
+        self.u_dnn = SimpleNet(in_size=1 + self.u_rnn.out_size,
+                               out_size=state_dim,
+                               hidden_size=(10, 10))
+
+        self.x_dnn = SimpleNet(in_size=1 + state_dim,
+                               out_size=state_dim,
+                               hidden_size=(10, 10))
+
+        self.output_transform = nn.Tanh()
         self.combinator = nn.Linear(2 * state_dim, state_dim)
 
     def forward(self, t, x, u):
         state_part = self.x_dnn(torch.hstack((t, x)))
 
+        u_rnn_out = self.u_rnn.init_hidden_state()
+
         for u_val in u:
-            u_rnn_out = self.u_rnn(u_val)
+            u_rnn_out = self.u_rnn(u_val.reshape((1, -1)))
+
+        u_rnn_out = u_rnn_out.repeat(t.shape[0], 1)
 
         control_part = self.u_dnn(torch.hstack((t, u_rnn_out)))
 
-        return self.combinator(torch.hstack(state_part, control_part))
+        stacked_outputs = self.output_transform(
+            torch.hstack((state_part, control_part)))
+
+        return self.combinator(stacked_outputs)
 
 
 class RecurrentNet(nn.Module):
-
     def __init__(self, in_size, out_size, hidden_size):
         super(RecurrentNet, self).__init__()
 
@@ -44,6 +57,7 @@ class RecurrentNet(nn.Module):
 
     def init_hidden_state(self):
         self.hidden = torch.zeros((1, self._hsz))
+        return self.hidden
 
     def forward(self, input):
         joint_input = torch.hstack((input, self.hidden))
@@ -55,7 +69,6 @@ class RecurrentNet(nn.Module):
 
 
 class SimpleNet(nn.Module):
-
     def __init__(self, in_size, out_size, hidden_size):
         super(SimpleNet, self).__init__()
 
