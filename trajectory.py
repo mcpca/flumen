@@ -43,7 +43,10 @@ class TrajectoryGenerator:
             method=self._ode_method,
         )
 
-        return y0, traj.t, traj.y, control_seq
+        y = traj.y.T
+        t = traj.t.reshape(-1, 1)
+
+        return y0, t, y, control_seq
 
 
 class TrajectoryDataset(Dataset):
