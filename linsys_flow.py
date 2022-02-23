@@ -19,7 +19,10 @@ def dynamics(x, u):
 
 
 def main():
-    trajectory_generator = TrajectoryGenerator(A_.shape[0], dynamics, 0.2)
+    delta = 0.2
+    trajectory_generator = TrajectoryGenerator(A_.shape[0],
+                                               dynamics,
+                                               control_delta=delta)
 
     traj_data = TrajectoryDataset(trajectory_generator,
                                   n_trajectories=100,
@@ -33,26 +36,27 @@ def main():
     train_dl = DataLoader(train_data, shuffle=True)
     test_dl = DataLoader(test_data, shuffle=True)
 
-    for x0, t, y, u in test_dl:
-        fig, ax = plt.subplots()
+    # for x0, t, y, u in test_dl:
+    #     fig, ax = plt.subplots()
 
-        t = t.reshape((-1, 1))
-        y = y.reshape(-1, A_.shape[1])
+    #     t = t.reshape((-1, 1))
+    #     y = y.reshape(-1, A_.shape[1])
 
-        ax.plot(t, y[:, 0], 'r--')
-        ax.plot(t, y[:, 1], 'r--')
+    #     ax.plot(t, y[:, 0], 'r--')
+    #     ax.plot(t, y[:, 1], 'r--')
 
-        plt.show()
-        plt.close(fig)
-        break
+    #     plt.show()
+    #     plt.close(fig)
+    #     break
 
     model = CausalFlowModel(state_dim=A_.shape[0],
                             control_dim=B_.shape[1],
-                            control_rnn_size=20)
+                            control_rnn_size=12,
+                            delta=delta)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=5e-3)
 
-    n_epochs = 100
+    n_epochs = 240
 
     print('Epoch :: Loss\n=================')
 
@@ -77,10 +81,10 @@ def main():
             y = y.reshape(-1, A_.shape[1])
             y_pred = model(t, x0, u).numpy()
 
-            ax.plot(y_pred[:, 0], 'k')
-            ax.plot(y_pred[:, 1], 'k')
-            ax.plot(y[:, 0], 'r--')
-            ax.plot(y[:, 1], 'r--')
+            ax.plot(t, y_pred[:, 0], 'k')
+            ax.plot(t, y_pred[:, 1], 'k')
+            ax.plot(t, y[:, 0], 'r--')
+            ax.plot(t, y[:, 1], 'r--')
 
             plt.show()
             plt.close(fig)
