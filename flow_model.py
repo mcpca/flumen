@@ -3,8 +3,11 @@ from torch import nn
 
 
 class CausalFlowModel(nn.Module):
-    def __init__(self, state_dim, control_dim, control_rnn_size):
+
+    def __init__(self, state_dim, control_dim, control_rnn_size, delta):
         super(CausalFlowModel, self).__init__()
+
+        self.delta = delta
 
         self.u_rnn = RecurrentNet(in_size=control_dim,
                                   out_size=state_dim,
@@ -12,26 +15,29 @@ class CausalFlowModel(nn.Module):
 
         self.u_dnn = SimpleNet(in_size=1 + self.u_rnn.out_size,
                                out_size=state_dim,
-                               hidden_size=(10, 10))
+                               hidden_size=(20, 20))
 
         self.x_dnn = SimpleNet(in_size=1 + state_dim,
                                out_size=state_dim,
-                               hidden_size=(10, 10))
+                               hidden_size=(20, 20))
 
-        self.output_transform = nn.Tanh()
+        self.output_transform = nn.Sigmoid()
         self.combinator = nn.Linear(2 * state_dim, state_dim)
 
     def forward(self, t, x, u):
         state_part = self.x_dnn(torch.hstack((t, x)))
 
-        u_rnn_out = self.u_rnn.init_hidden_state()
+        self.u_rnn.init_hidden_state()
+        u_rnn_out = torch.zeros((u.shape[0], self.u_rnn.out_size))
 
-        for u_val in u:
-            u_rnn_out = self.u_rnn(u_val.reshape((1, -1)))
+        for k, u_val in enumerate(u):
+            u_rnn_out[k, :] = self.u_rnn(u_val.reshape((1, -1)))
 
-        u_rnn_out = u_rnn_out.repeat(t.shape[0], 1)
+        # find control index coresponding to each time
+        t_u = torch.floor(t / self.delta).long().squeeze()
+        encoded_controls = u_rnn_out[t_u, :]
 
-        control_part = self.u_dnn(torch.hstack((t, u_rnn_out)))
+        control_part = self.u_dnn(torch.hstack((t, encoded_controls)))
 
         stacked_outputs = self.output_transform(
             torch.hstack((state_part, control_part)))
@@ -40,6 +46,7 @@ class CausalFlowModel(nn.Module):
 
 
 class RecurrentNet(nn.Module):
+
     def __init__(self, in_size, out_size, hidden_size):
         super(RecurrentNet, self).__init__()
 
@@ -69,7 +76,8 @@ class RecurrentNet(nn.Module):
 
 
 class SimpleNet(nn.Module):
-    def __init__(self, in_size, out_size, hidden_size):
+
+    def __init__(self, in_size, out_size, hidden_size, activation=nn.Sigmoid):
         super(SimpleNet, self).__init__()
 
         self.in_size = in_size
@@ -77,9 +85,9 @@ class SimpleNet(nn.Module):
 
         self.stack = nn.Sequential(
             nn.Linear(in_size, hidden_size[0]),
-            nn.Tanh(),
+            activation(),
             nn.Linear(hidden_size[0], hidden_size[1]),
-            nn.Tanh(),
+            activation(),
             nn.Linear(hidden_size[1], out_size),
         )
 
