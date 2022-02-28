@@ -1,9 +1,9 @@
 import torch
 from torch import nn
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
-from trajectory import TrajectoryGenerator, TrajectoryDataset
+from trajectory import TrajectoryGenerator, TrajectoryDataset, pack_model_inputs
 from flow_model import CausalFlowModel
 
 torch.set_default_dtype(torch.float64)
@@ -19,35 +19,18 @@ def dynamics(x, u):
 
 
 def main():
-    delta = 0.2
+    delta = 0.5
     trajectory_generator = TrajectoryGenerator(A_.shape[0],
                                                dynamics,
                                                control_delta=delta)
 
     traj_data = TrajectoryDataset(trajectory_generator,
                                   n_trajectories=100,
-                                  n_samples=20,
+                                  n_samples=100,
                                   time_horizon=10.)
 
-    train_len = int(0.4 * len(traj_data))
-    train_data, test_data = random_split(
-        traj_data, (train_len, len(traj_data) - train_len))
-
-    train_dl = DataLoader(train_data, shuffle=True)
-    test_dl = DataLoader(test_data, shuffle=True)
-
-    # for x0, t, y, u in test_dl:
-    #     fig, ax = plt.subplots()
-
-    #     t = t.reshape((-1, 1))
-    #     y = y.reshape(-1, A_.shape[1])
-
-    #     ax.plot(t, y[:, 0], 'r--')
-    #     ax.plot(t, y[:, 1], 'r--')
-
-    #     plt.show()
-    #     plt.close(fig)
-    #     break
+    batch_size = 32
+    train_dl = DataLoader(traj_data, batch_size=batch_size, shuffle=True)
 
     model = CausalFlowModel(state_dim=A_.shape[0],
                             control_dim=B_.shape[1],
@@ -61,30 +44,37 @@ def main():
     print('Epoch :: Loss\n=================')
 
     for epoch in range(n_epochs):
-        loss = 0.
+        try:
+            loss = 0.
 
-        for example in train_dl:
-            loss += train(example, model, optimizer, epoch)
+            for example in train_dl:
+                loss += train(example, model, optimizer, epoch)
 
-        loss /= len(train_dl)
-        print(f"{epoch + 1:>5d} :: {loss:>7f}")
+            loss /= len(train_dl)
+            print(f"{epoch + 1:>5d} :: {loss:>7f}")
+
+        except KeyboardInterrupt:
+            break
 
     model.eval()
 
     with torch.no_grad():
-        for x0, t, y, u in test_dl:
+        while True:
             fig, ax = plt.subplots()
 
-            t = t.reshape(-1, 1)
-            u = u.reshape(-1, B_.shape[1])
-            x0 = x0.repeat(t.shape[0], 1)
-            y = y.reshape(-1, A_.shape[1])
-            y_pred = model(t, x0, u).numpy()
+            x0, t, y, u = trajectory_generator.get_example(time_horizon=10.,
+                                                           n_samples=100)
 
-            ax.plot(t, y_pred[:, 0], 'k')
+            x0, t, u = pack_model_inputs(x0, t, u, delta)
+
+            y_pred = model(t, x0, u)
+
+            ax.plot(t, y_pred[:, 0], 'k', label='Prediction')
             ax.plot(t, y_pred[:, 1], 'k')
-            ax.plot(t, y[:, 0], 'r--')
-            ax.plot(t, y[:, 1], 'r--')
+            ax.plot(t, y[:, 0], 'r--', label='State 1')
+            ax.plot(t, y[:, 1], 'b--', label='State 2')
+
+            ax.legend()
 
             plt.show()
             plt.close(fig)
@@ -93,11 +83,6 @@ def main():
 def train(example, model, optimizer, epoch):
     model.train()
     x0, t, y, u = example
-
-    t = t.reshape(-1, 1)
-    u = u.reshape(-1, B_.shape[1])
-    x0 = x0.repeat(t.shape[0], 1)
-    y = y.reshape(-1, A_.shape[1])
 
     mse = nn.MSELoss()
 

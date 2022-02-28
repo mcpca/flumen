@@ -31,7 +31,7 @@ class CausalFlowModel(nn.Module):
         state_part = self.x_dnn(torch.hstack((t, x)))
 
         batch_size = t.shape[0]
-        seq_size = u.shape[0]
+        seq_size = u.shape[1]
         u_rnn_in = torch.empty((batch_size, seq_size, self.u_rnn.input_size))
 
         # control index corresponding to each time
@@ -39,47 +39,16 @@ class CausalFlowModel(nn.Module):
         t_rel = t - self.delta * t_u.unsqueeze(-1)
 
         for k, v in enumerate(u_rnn_in):
-            v[:] = torch.hstack((t_rel[k].repeat(seq_size, 1), u))
+            v[:] = torch.hstack((t[k].repeat(seq_size, 1), u[k]))
 
-        u_rnn_out, _ = self.u_rnn(u_rnn_in)
+        _, (encoded_controls, _) = self.u_rnn(u_rnn_in)
 
-        encoded_controls = u_rnn_out[range(len(t)), t_u, :]
-
-        control_part = self.u_dnn(torch.hstack((t_rel, encoded_controls)))
+        control_part = self.u_dnn(torch.hstack((t_rel, encoded_controls[-1])))
 
         stacked_outputs = self.output_transform(
             torch.hstack((state_part, control_part)))
 
         return x + torch.tanh(t) * self.combinator(stacked_outputs)
-
-
-class RecurrentNet(nn.Module):
-    def __init__(self, in_size, out_size, hidden_size):
-        super(RecurrentNet, self).__init__()
-
-        self.in_size = in_size
-        self.out_size = out_size
-
-        self._hsz = hidden_size
-        self.hidden = None
-
-        self.act = nn.Sigmoid()
-        self.i2h = nn.Linear(in_size + self._hsz, self._hsz)
-        self.h2o = nn.Linear(self._hsz, out_size)
-
-        self.init_hidden_state()
-
-    def init_hidden_state(self):
-        self.hidden = torch.zeros((1, self._hsz))
-        return self.hidden
-
-    def forward(self, input):
-        joint_input = torch.hstack((input, self.hidden))
-
-        self.hidden = self.act(self.i2h(joint_input))
-        output = self.act(self.h2o(self.hidden))
-
-        return output
 
 
 class SimpleNet(nn.Module):
