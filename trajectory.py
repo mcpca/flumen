@@ -42,6 +42,7 @@ class TrajectoryGenerator:
             y0,
             t_eval=t_samples,
             method=self._ode_method,
+            rtol=1e-9,
         )
 
         y = traj.y.T
