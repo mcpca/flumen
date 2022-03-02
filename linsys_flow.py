@@ -29,7 +29,7 @@ def main():
                                   n_samples=100,
                                   time_horizon=10.)
 
-    batch_size = 32
+    batch_size = 64
     train_dl = DataLoader(traj_data, batch_size=batch_size, shuffle=True)
 
     model = CausalFlowModel(state_dim=A_.shape[0],
@@ -39,7 +39,7 @@ def main():
 
     optimizer = torch.optim.Adam(model.parameters(), lr=5e-3)
 
-    n_epochs = 240
+    n_epochs = 400
 
     print('Epoch :: Loss\n=================')
 

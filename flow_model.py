@@ -3,6 +3,7 @@ from torch import nn
 
 
 class CausalFlowModel(nn.Module):
+
     def __init__(self, state_dim, control_dim, control_rnn_size, delta):
         super(CausalFlowModel, self).__init__()
 
@@ -17,11 +18,12 @@ class CausalFlowModel(nn.Module):
 
         self.u_dnn = SimpleNet(in_size=1 + control_rnn_size,
                                out_size=state_dim,
-                               hidden_size=(10, 10))
+                               hidden_size=(15, 15),
+                               activation=nn.ReLU)
 
         self.x_dnn = SimpleNet(in_size=1 + state_dim,
                                out_size=state_dim,
-                               hidden_size=(10, 10))
+                               hidden_size=(10, 50))
 
         self.output_transform = nn.Sigmoid()
         self.combinator = nn.Linear(self.x_dnn.out_size + self.u_dnn.out_size,
@@ -52,6 +54,7 @@ class CausalFlowModel(nn.Module):
 
 
 class SimpleNet(nn.Module):
+
     def __init__(self, in_size, out_size, hidden_size, activation=nn.Sigmoid):
         super(SimpleNet, self).__init__()
 
