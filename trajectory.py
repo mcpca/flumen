@@ -5,26 +5,36 @@ import torch
 from torch.utils.data import Dataset
 
 
+class SequenceGenerator:
+    def __init__(self, rng: np.random.Generator = None):
+        self._rng = rng if rng else np.random.default_rng()
+
+    def sample(self, time_range, delta):
+        return self._sample_impl(time_range, delta)
+
+
 class TrajectoryGenerator:
     def __init__(self,
                  state_dimension,
                  dynamics,
                  control_delta,
+                 control_generator: SequenceGenerator,
                  method='RK45'):
         self._n = state_dimension
         self._ode_method = method
         self._dyn = dynamics
         self._rng = np.random.default_rng()
         self._delta = control_delta  # control sampling time
+        self._seq_gen = control_generator
 
         self._init_time = 0.
 
     def get_example(self, time_horizon, n_samples):
         y0 = self._rng.standard_normal(size=self._n)
 
-        n_control_vals = int(1 + np.floor((time_horizon - self._init_time) /
-                                          self._delta))
-        control_seq = self._rng.standard_normal(size=(n_control_vals, 1))
+        control_seq = self._seq_gen.sample(time_range=(self._init_time,
+                                                       time_horizon),
+                                           delta=self._delta)
 
         def f(t, y):
             n_control = int(np.floor((t - self._init_time) / self._delta))
@@ -106,3 +116,41 @@ def pack_model_inputs(x0, t, u, delta):
         u_[n_control + 1:] = 0.
 
     return x0, t, u_unrolled
+
+
+class GaussianSequence(SequenceGenerator):
+    def __init__(self, mean=0., std=1., rng=None):
+        super(GaussianSequence, self).__init__(rng)
+
+        self._mean = mean
+        self._std = std
+
+    def _sample_impl(self, time_range, delta):
+        n_control_vals = int(1 +
+                             np.floor((time_range[1] - time_range[0]) / delta))
+        control_seq = self._rng.normal(loc=self._mean,
+                                       scale=self._std,
+                                       size=(n_control_vals, 1))
+
+        return control_seq
+
+
+class SinusoidalSequence(SequenceGenerator):
+    def __init__(self, rng=None):
+        super(SinusoidalSequence, self).__init__(rng)
+
+        self._f_mean = 1.0
+        self._f_std = 1.0
+        self._amp_mean = 1.0
+        self._amp_std = 1.0
+
+    def _sample_impl(self, time_range, delta):
+        amplitude = self._rng.lognormal(mean=self._amp_mean,
+                                        sigma=self._amp_std)
+        frequency = self._rng.lognormal(mean=self._f_mean, sigma=self._f_std)
+
+        n_control_vals = int(1 +
+                             np.floor((time_range[1] - time_range[0]) / delta))
+        time = np.linspace(time_range[0], time_range[1], n_control_vals)
+
+        return (amplitude * np.sin(frequency * time)).reshape((-1, 1))

@@ -3,7 +3,9 @@ from torch import nn
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
-from trajectory import TrajectoryGenerator, TrajectoryDataset, pack_model_inputs
+from trajectory import (TrajectoryGenerator, TrajectoryDataset,
+                        pack_model_inputs, GaussianSequence,
+                        SinusoidalSequence)
 from flow_model import CausalFlowModel
 
 torch.set_default_dtype(torch.float64)
@@ -20,12 +22,14 @@ def dynamics(x, u):
 
 def main():
     delta = 0.5
-    trajectory_generator = TrajectoryGenerator(A_.shape[0],
-                                               dynamics,
-                                               control_delta=delta)
+    trajectory_generator = TrajectoryGenerator(
+        A_.shape[0],
+        dynamics,
+        control_generator=GaussianSequence(),
+        control_delta=delta)
 
     traj_data = TrajectoryDataset(trajectory_generator,
-                                  n_trajectories=100,
+                                  n_trajectories=150,
                                   n_samples=100,
                                   time_horizon=10.)
 
@@ -37,7 +41,7 @@ def main():
                             control_rnn_size=12,
                             delta=delta)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=5e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     n_epochs = 400
 
@@ -59,6 +63,11 @@ def main():
     model.eval()
 
     with torch.no_grad():
+        trajectory_generator = TrajectoryGenerator(
+            A_.shape[0],
+            dynamics,
+            control_generator=SinusoidalSequence(),
+            control_delta=delta)
         while True:
             fig, ax = plt.subplots()
 
