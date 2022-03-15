@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.linalg import sqrtm, inv
 from pyDOE import lhs
 import torch
 from torch.utils.data import Dataset
@@ -70,8 +71,6 @@ class TrajectoryDataset(Dataset):
             for _ in range(n_trajectories)
         ]
 
-        delta = generator._delta
-        t0 = generator._init_time
         seq_len = examples[0][-1].size
         self.len = n_samples * n_trajectories
 
@@ -89,13 +88,17 @@ class TrajectoryDataset(Dataset):
                 self.init_state[k] = x0
                 self.time[k] = t_
                 self.state[k] = x_
-
                 self.control_seq[k] = u
-                # pad control sequence
-                n_control = int(np.floor((t_ - t0) / delta))
-                self.control_seq[k][n_control + 1:] = 0.
 
                 k += 1
+
+    def whiten_targets(self):
+        mean = self.state.mean(axis=0)
+        std = sqrtm(np.cov(self.state.T))
+
+        self.state[:] =  (self.state - mean) @ inv(std)
+
+        return mean, std
 
     def __len__(self):
         return self.len
@@ -112,8 +115,6 @@ def pack_model_inputs(x0, t, u, delta):
 
     for t_, u_ in zip(t, u_unrolled):
         u_[:] = torch.Tensor(u)
-        n_control = int(np.floor(t_ / delta))
-        u_[n_control + 1:] = 0.
 
     return x0, t, u_unrolled
 
@@ -131,6 +132,25 @@ class GaussianSequence(SequenceGenerator):
         control_seq = self._rng.normal(loc=self._mean,
                                        scale=self._std,
                                        size=(n_control_vals, 1))
+
+        return control_seq
+
+
+class RandomWalkSequence(SequenceGenerator):
+    def __init__(self, mean=0., std=1., rng=None):
+        super(RandomWalkSequence, self).__init__(rng)
+
+        self._mean = mean
+        self._std = std
+
+    def _sample_impl(self, time_range, delta):
+        n_control_vals = int(1 +
+                             np.floor((time_range[1] - time_range[0]) / delta))
+
+        control_seq = np.cumsum(self._rng.normal(loc=self._mean,
+                                                 scale=self._std,
+                                                 size=(n_control_vals, 1)),
+                                axis=1)
 
         return control_seq
 
