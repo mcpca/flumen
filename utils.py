@@ -51,11 +51,6 @@ def parse_args():
                     help="Max number of epochs",
                     default=10000)
 
-    ap.add_argument('--save_model',
-                    type=str,
-                    help="Path to write .pth model",
-                    default=None)
-
     ap.add_argument('--es_patience',
                     type=positive_int,
                     help="Early stopping -- patience (epochs)",
