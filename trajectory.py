@@ -74,10 +74,10 @@ class TrajectoryDataset(Dataset):
         seq_len = examples[0][-1].size
         self.len = n_samples * n_trajectories
 
-        self.init_state = np.empty((self.len, generator._n))
-        self.time = np.empty((self.len, 1))
-        self.control_seq = np.empty((self.len, seq_len, 1))
-        self.state = np.empty((self.len, generator._n))
+        self.init_state = torch.empty((self.len, generator._n))
+        self.time = torch.empty((self.len, 1))
+        self.control_seq = torch.empty((self.len, seq_len, 1))
+        self.state = torch.empty((self.len, generator._n))
 
         k = 0
 
@@ -85,10 +85,10 @@ class TrajectoryDataset(Dataset):
             x0, t, y, u = example
 
             for x_, t_ in zip(y, t):
-                self.init_state[k] = x0
-                self.time[k] = t_
-                self.state[k] = x_
-                self.control_seq[k] = u
+                self.init_state[k] = torch.from_numpy(x0)
+                self.time[k] = torch.from_numpy(t_)
+                self.state[k] = torch.from_numpy(x_)
+                self.control_seq[k] = torch.from_numpy(u)
 
                 k += 1
 
@@ -96,7 +96,7 @@ class TrajectoryDataset(Dataset):
         mean = self.state.mean(axis=0)
         std = sqrtm(np.cov(self.state.T))
 
-        self.state[:] =  (self.state - mean) @ inv(std)
+        self.state[:] = (self.state - mean) @ inv(std)
 
         return mean, std
 
@@ -132,6 +132,29 @@ class GaussianSequence(SequenceGenerator):
         control_seq = self._rng.normal(loc=self._mean,
                                        scale=self._std,
                                        size=(n_control_vals, 1))
+
+        return control_seq
+
+
+class GaussianSqWave(SequenceGenerator):
+    def __init__(self, period, mean=0., std=1., rng=None):
+        super(GaussianSqWave, self).__init__(rng)
+
+        self._period = period
+        self._mean = mean
+        self._std = std
+
+    def _sample_impl(self, time_range, delta):
+        n_control_vals = int(1 +
+                             np.floor((time_range[1] - time_range[0]) / delta))
+
+        n_amplitude_vals = int(np.ceil(n_control_vals / self._period))
+
+        amp_seq = self._rng.normal(loc=self._mean,
+                                   scale=self._std,
+                                   size=(n_amplitude_vals, 1))
+
+        control_seq = np.repeat(amp_seq, self._period, axis=0)[:n_control_vals]
 
         return control_seq
 
