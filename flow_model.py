@@ -3,8 +3,13 @@ from torch import nn
 
 
 class CausalFlowModel(nn.Module):
-    def __init__(self, state_dim, control_dim, control_rnn_size, delta):
+    def __init__(self, state_dim, control_dim, control_rnn_size, delta,
+                 norm_center, norm_weight, generator):
         super(CausalFlowModel, self).__init__()
+
+        self.generator = generator
+        self.center = norm_center
+        self.weight = norm_weight
 
         self.delta = torch.tensor((delta, ))
 
@@ -56,6 +61,12 @@ class CausalFlowModel(nn.Module):
             torch.hstack((control_part, state_part)))
 
         return self.combinator(stacked_outputs)
+
+    def predict(self, t, x0, u):
+        y_pred = self.__call__(t, x0, u).numpy()
+        y_pred[:] = self.center + y_pred @ self.weight
+
+        return y_pred
 
 
 class FFNet(nn.Module):

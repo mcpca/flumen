@@ -56,6 +56,21 @@ def parse_args():
                     help="Path to write .pth model",
                     default=None)
 
+    ap.add_argument('--es_patience',
+                    type=positive_int,
+                    help="Early stopping -- patience (epochs)",
+                    default=30)
+
+    ap.add_argument('--es_delta',
+                    type=nonnegative_float,
+                    help="Early stopping -- minimum loss change",
+                    default=0.)
+
+    ap.add_argument('--save_model',
+                    type=str,
+                    help="Path to write .pth model",
+                    default=None)
+
     return ap.parse_args()
 
 
@@ -73,6 +88,15 @@ def positive_float(value):
 
     if value <= 0:
         raise argparse.ArgumentTypeError(f"{value} is not a positive float")
+
+    return value
+
+
+def nonnegative_float(value):
+    value = float(value)
+
+    if value < 0:
+        raise argparse.ArgumentTypeError(f"{value} is not a nonnegative float")
 
     return value
 

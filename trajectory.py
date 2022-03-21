@@ -16,12 +16,11 @@ class SequenceGenerator:
 
 class TrajectoryGenerator:
     def __init__(self,
-                 state_dimension,
                  dynamics,
                  control_delta,
                  control_generator: SequenceGenerator,
                  method='RK45'):
-        self._n = state_dimension
+        self._n = dynamics.n
         self._ode_method = method
         self._dyn = dynamics
         self._rng = np.random.default_rng()
