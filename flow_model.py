@@ -6,7 +6,11 @@ class CausalFlowModel(nn.Module):
     def __init__(self, state_dim, control_dim, control_rnn_size, delta):
         super(CausalFlowModel, self).__init__()
 
-        self.delta = delta
+        self.delta = torch.tensor((delta, ))
+
+        self.state_dim = state_dim
+        self.control_dim = control_dim
+        self.control_rnn_size = control_rnn_size
 
         self.u_rnn = torch.nn.LSTM(
             input_size=1 + control_dim,

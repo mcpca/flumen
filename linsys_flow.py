@@ -1,4 +1,7 @@
 import torch
+
+torch.set_default_dtype(torch.float32)
+
 from torch import nn
 from torch.utils.data import DataLoader, random_split
 import matplotlib.pyplot as plt
@@ -6,8 +9,7 @@ import numpy as np
 from trajectory import (TrajectoryGenerator, TrajectoryDataset,
                         pack_model_inputs, RandomWalkSequence)
 from flow_model import CausalFlowModel
-
-torch.set_default_dtype(torch.float64)
+from utils import parse_args
 
 A_ = np.array([[-0.01, 1], [0, -1]])
 B_ = np.array([0, 1]).reshape((-1, 1))
@@ -18,44 +20,42 @@ def dynamics(x, u):
 
 
 def main():
-    delta = 0.5
+    args = parse_args()
+
     trajectory_generator = TrajectoryGenerator(
         A_.shape[0],
         dynamics,
         control_generator=RandomWalkSequence(),
-        control_delta=delta)
+        control_delta=args.control_delta)
 
     traj_data = TrajectoryDataset(trajectory_generator,
-                                  n_trajectories=400,
-                                  n_samples=100,
-                                  time_horizon=10.)
+                                  n_trajectories=args.n_trajectories,
+                                  n_samples=args.n_samples,
+                                  time_horizon=args.time_horizon)
 
     norm_center, norm_weight = traj_data.whiten_targets()
 
-    train_len = int(len(traj_data) / 2)
+    train_len = int((float(args.train_val_split) / 100.) * len(traj_data))
     train_data, val_data = random_split(traj_data,
                                         lengths=(train_len,
                                                  len(traj_data) - train_len))
 
-    batch_size = 256
-    train_dl = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=False)
+    train_dl = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+    val_dl = DataLoader(val_data, batch_size=args.batch_size, shuffle=False)
 
     model = CausalFlowModel(state_dim=A_.shape[0],
                             control_dim=B_.shape[1],
-                            control_rnn_size=12,
-                            delta=delta)
+                            control_rnn_size=args.control_rnn_size,
+                            delta=args.control_delta)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
     mse_loss = nn.MSELoss()
-
-    n_epochs = 10000
 
     print('Epoch :: Loss (Train) :: Loss (Val)')
     print('===================================')
 
-    for epoch in range(n_epochs):
+    for epoch in range(args.n_epochs):
         try:
             loss = 0.
 
@@ -82,15 +82,13 @@ def main():
             x0, t, y, u = trajectory_generator.get_example(time_horizon=10.,
                                                            n_samples=100)
 
-            x0, t, u = pack_model_inputs(x0, t, u, delta)
+            x0, t, u = pack_model_inputs(x0, t, u, args.control_delta)
 
             y_pred = model(t, x0, u).numpy()
             y_pred[:] = norm_center + y_pred @ norm_weight
 
-            ax.plot(t, y_pred[:, 0], 'k', label='Prediction')
-            ax.plot(t, y_pred[:, 1], 'k')
-            ax.plot(t, y[:, 0], 'r--', label='State 1')
-            ax.plot(t, y[:, 1], 'b--', label='State 2')
+            ax.plot(t, y_pred, 'k', label='Prediction')
+            ax.plot(t, y, 'b--', label='True state')
 
             ax.legend()
 
