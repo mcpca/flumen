@@ -16,19 +16,20 @@ class CausalFlowModel(nn.Module):
             dropout=0,
         )
 
-        self.u_dnn = SimpleNet(in_size=1 + control_rnn_size,
-                               out_size=24,
-                               hidden_size=(20, 100))
+        self.u_dnn = FFNet(in_size=1 + control_rnn_size,
+                           out_size=state_dim,
+                           hidden_size=(2 * control_rnn_size,
+                                        2 * control_rnn_size))
 
-        self.x_dnn = SimpleNet(in_size=1 + state_dim,
-                               out_size=24,
-                               hidden_size=(20, 100))
+        self.x_dnn = FFNet(in_size=1 + state_dim,
+                           out_size=state_dim,
+                           hidden_size=(2 * state_dim, 2 * state_dim))
 
         self.output_transform = nn.Tanh()
-        self.combinator = SimpleNet(in_size=self.x_dnn.out_size +
-                                    self.u_dnn.out_size,
-                                    out_size=state_dim,
-                                    hidden_size=(25, 100))
+        comb_isz = self.x_dnn.out_size + self.u_dnn.out_size
+        self.combinator = FFNet(in_size=comb_isz,
+                                out_size=state_dim,
+                                hidden_size=(2 * comb_isz, 2 * comb_isz))
 
     def forward(self, t, x, u):
         batch_size = t.shape[0]
@@ -53,22 +54,27 @@ class CausalFlowModel(nn.Module):
         return self.combinator(stacked_outputs)
 
 
-class SimpleNet(nn.Module):
+class FFNet(nn.Module):
     def __init__(self, in_size, out_size, hidden_size, activation=nn.Tanh):
-        super(SimpleNet, self).__init__()
+        super(FFNet, self).__init__()
 
         self.in_size = in_size
         self.out_size = out_size
 
-        self.stack = nn.Sequential(
-            nn.Linear(in_size, hidden_size[0]),
-            nn.BatchNorm1d(hidden_size[0]),
-            activation(),
-            nn.Linear(hidden_size[0], hidden_size[1]),
-            nn.BatchNorm1d(hidden_size[1]),
-            activation(),
-            nn.Linear(hidden_size[1], out_size),
-        )
+        self.layers = nn.ModuleList()
+        self.layers.append(nn.Linear(in_size, hidden_size[0]))
+        self.layers.append(nn.BatchNorm1d(hidden_size[0]))
+        self.layers.append(activation())
+
+        for isz, osz in zip(hidden_size[:-1], hidden_size[1:]):
+            self.layers.append(nn.Linear(isz, osz))
+            self.layers.append(nn.BatchNorm1d(osz))
+            self.layers.append(activation())
+
+        self.layers.append(nn.Linear(hidden_size[-1], out_size))
 
     def forward(self, input):
-        return self.stack(input)
+        for layer in self.layers:
+            input = layer(input)
+
+        return input
