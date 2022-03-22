@@ -59,8 +59,7 @@ def main():
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, cooldown=2)
-    mse_loss = nn.MSELoss()
-    mse_loss.to(device)
+    mse_loss = nn.MSELoss().to(device)
 
     early_stop = EarlyStopping(es_patience=args.es_patience,
                                es_delta=args.es_delta)
