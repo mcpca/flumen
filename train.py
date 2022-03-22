@@ -12,11 +12,16 @@ def validate(data, loss_fn, model):
     return vl / len(data)
 
 
-def train(example, loss_fn, model, optimizer, epoch):
+def train(example, loss_fn, model, optimizer, epoch, device):
     model.train()
     x0, t, y, u = example
 
     optimizer.zero_grad()
+
+    x0.to(device)
+    t.to(device)
+    y.to(device)
+    u.to(device)
 
     y_pred = model(t, x0, u)
     loss = loss_fn(y, y_pred)

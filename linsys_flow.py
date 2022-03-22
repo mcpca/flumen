@@ -50,6 +50,12 @@ def main():
                             norm_weight=norm_weight,
                             generator=trajectory_generator)
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
+    if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, cooldown=2)
     mse_loss = nn.MSELoss()
@@ -67,7 +73,7 @@ def main():
 
         model.train()
         for example in train_dl:
-            loss += train(example, mse_loss, model, optimizer, epoch)
+            loss += train(example, mse_loss, model, optimizer, epoch, device)
 
         loss /= len(train_dl)
 
