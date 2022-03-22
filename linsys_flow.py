@@ -12,6 +12,8 @@ from train import EarlyStopping, train, validate
 from utils import parse_args
 from dynamics import LinearSys
 
+import time
+
 
 def main():
     args = parse_args()
@@ -58,6 +60,8 @@ def main():
     print('Epoch :: Loss (Train) :: Loss (Val) :: Best (Val)')
     print('=================================================')
 
+    start = time.time()
+
     for epoch in range(args.n_epochs):
         loss = 0.
 
@@ -81,6 +85,9 @@ def main():
 
         if early_stop.early_stop:
             break
+
+    train_time = time.time() - start
+    print(f"Training took {train_time:.2f} seconds.")
 
 
 if __name__ == '__main__':
