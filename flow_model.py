@@ -11,7 +11,8 @@ class CausalFlowModel(nn.Module):
         self.center = norm_center
         self.weight = norm_weight
 
-        self.delta = torch.tensor((delta, ))
+        delta = torch.tensor((delta, ))
+        self.register_buffer('delta', delta)
 
         self.state_dim = state_dim
         self.control_dim = control_dim
