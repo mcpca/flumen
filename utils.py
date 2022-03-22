@@ -1,3 +1,5 @@
+import torch
+
 import argparse
 from argparse import ArgumentParser
 
@@ -103,3 +105,17 @@ def percentage(value):
         raise argparse.ArgumentTypeError(f"{value} is not a valid percentage")
 
     return value
+
+def print_gpu_info():
+    if torch.cuda.is_available():
+        n_gpus = torch.cuda.device_count()
+        print(f"CUDA is available, {n_gpus} can be used.")
+        current_dev = torch.cuda.current_device()
+
+        for id in range(n_gpus):
+            msg = f"Device {id}: {torch.cuda.get_device_name(id)}"
+
+            if id == current_dev:
+                msg += " [Current]"
+
+            print(msg)

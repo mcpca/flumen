@@ -9,7 +9,7 @@ from trajectory import (TrajectoryGenerator, TrajectoryDataset,
                         RandomWalkSequence)
 from flow_model import CausalFlowModel
 from train import EarlyStopping, train, validate
-from utils import parse_args
+from utils import parse_args, print_gpu_info
 from dynamics import LinearSys
 
 import time
@@ -91,4 +91,5 @@ def main():
 
 
 if __name__ == '__main__':
+    print_gpu_info()
     main()
