@@ -1,11 +1,16 @@
 import torch
 
 
-def validate(data, loss_fn, model):
+def validate(data, loss_fn, model, device):
     vl = 0.
 
     with torch.no_grad():
         for (x0, t, y, u) in data:
+            x0 = x0.to(device)
+            t = t.to(device)
+            y = y.to(device)
+            u = u.to(device)
+
             y_pred = model(t, x0, u)
             vl += loss_fn(y, y_pred)
 
@@ -15,11 +20,14 @@ def validate(data, loss_fn, model):
 def train(example, loss_fn, model, optimizer, epoch, device):
     model.train()
     x0, t, y, u = example
+    x0 = x0.to(device)
+    t = t.to(device)
+    y = y.to(device)
+    u = u.to(device)
 
     optimizer.zero_grad()
 
     y_pred = model(t, x0, u)
-    y = y.to(device)
     loss = loss_fn(y, y_pred)
 
     loss.backward()

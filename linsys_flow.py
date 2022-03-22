@@ -79,7 +79,7 @@ def main():
         loss /= len(train_dl)
 
         model.eval()
-        val_loss = validate(val_dl, mse_loss, model)
+        val_loss = validate(val_dl, mse_loss, model, device)
         sched.step(val_loss)
         early_stop.step(val_loss)
 
