@@ -109,7 +109,7 @@ def percentage(value):
 def print_gpu_info():
     if torch.cuda.is_available():
         n_gpus = torch.cuda.device_count()
-        print(f"CUDA is available, {n_gpus} can be used.")
+        print(f"CUDA is available, {n_gpus} devices can be used.")
         current_dev = torch.cuda.current_device()
 
         for id in range(n_gpus):
