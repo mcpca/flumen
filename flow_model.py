@@ -44,7 +44,8 @@ class CausalFlowModel(nn.Module):
     def forward(self, t, x, u):
         batch_size = t.shape[0]
         seq_size = u.shape[1]
-        u_rnn_in = torch.empty((batch_size, seq_size, self.u_rnn.input_size))
+        u_rnn_in = torch.empty((batch_size, seq_size,
+                                self.u_rnn.input_size)).to(self.delta.device)
 
         # control index corresponding to each time
         t_u = torch.floor(t / self.delta).long().squeeze()

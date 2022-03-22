@@ -73,7 +73,7 @@ def main():
 
         model.train()
         for example in train_dl:
-            loss += train(example, mse_loss, model, optimizer, epoch)
+            loss += train(example, mse_loss, model, optimizer, epoch, device)
 
         loss /= len(train_dl)
 
