@@ -7,7 +7,12 @@ import sys
 
 
 def main():
-    model: CausalFlowModel = torch.load(sys.argv[1])
+    model: CausalFlowModel = torch.load(sys.argv[1],
+                                        map_location=torch.device('cpu'))
+
+    if isinstance(model, torch.nn.DataParallel):
+        model = model.module
+
     model.eval()
 
     delta = model.delta.item()
