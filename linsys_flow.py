@@ -51,10 +51,11 @@ def main():
                             generator=trajectory_generator)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
 
     if torch.cuda.is_available() and torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
+
+    model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, cooldown=2)

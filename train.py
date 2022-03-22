@@ -19,7 +19,7 @@ def train(example, loss_fn, model, optimizer, epoch, device):
     optimizer.zero_grad()
 
     y_pred = model(t, x0, u)
-    y.to(device)
+    y = y.to(device)
     loss = loss_fn(y, y_pred)
 
     loss.backward()
