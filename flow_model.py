@@ -19,50 +19,41 @@ class CausalFlowModel(nn.Module):
         self.control_rnn_size = control_rnn_size
 
         self.u_rnn = torch.nn.LSTM(
-            input_size=1 + control_dim,
+            input_size=control_dim,
             hidden_size=control_rnn_size,
             batch_first=True,
             num_layers=3,
             dropout=0,
         )
 
+        x_dnn_osz = self.u_rnn.num_layers * 2 * control_rnn_size
+        self.x_dnn = FFNet(in_size=1 + state_dim,
+                           out_size=x_dnn_osz,
+                           hidden_size=(5 * x_dnn_osz, 5 * x_dnn_osz))
+
         self.u_dnn = FFNet(in_size=1 + control_rnn_size,
                            out_size=state_dim,
                            hidden_size=(2 * control_rnn_size,
                                         2 * control_rnn_size))
 
-        self.x_dnn = FFNet(in_size=1 + state_dim,
-                           out_size=state_dim,
-                           hidden_size=(2 * state_dim, 2 * state_dim))
-
-        self.output_transform = nn.Tanh()
-        comb_isz = self.x_dnn.out_size + self.u_dnn.out_size
-        self.combinator = FFNet(in_size=comb_isz,
-                                out_size=state_dim,
-                                hidden_size=(2 * comb_isz, 2 * comb_isz))
-
     def forward(self, t, x, u):
-        batch_size = t.shape[0]
-        seq_size = u.shape[1]
-        u_rnn_in = torch.empty((batch_size, seq_size,
-                                self.u_rnn.input_size)).to(self.delta.device)
-
         # control index corresponding to each time
         t_u = torch.floor(t / self.delta).long().squeeze()
         t_rel = (t - self.delta * t_u.unsqueeze(-1)) / self.delta
 
-        for k, v in enumerate(u_rnn_in):
-            v[:] = torch.hstack((t[k].repeat(seq_size, 1), u[k]))
+        h0, c0 = self.x_dnn(torch.hstack(
+            (t, x))).split(self.u_rnn.num_layers * self.control_rnn_size,
+                           dim=1)
 
-        encoded_controls, _ = self.u_rnn(u_rnn_in)
+        h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
+        c0 = torch.stack(c0.split(self.control_rnn_size, dim=1))
+
+        encoded_controls, _ = self.u_rnn(u, (h0, c0))
         encoded_controls = encoded_controls[range(len(t)), t_u, :]
 
-        control_part = self.u_dnn(torch.hstack((t_rel, encoded_controls)))
-        state_part = self.x_dnn(torch.hstack((t, x)))
-        stacked_outputs = self.output_transform(
-            torch.hstack((control_part, state_part)))
+        output = self.u_dnn(torch.hstack((t_rel, encoded_controls)))
 
-        return self.combinator(stacked_outputs)
+        return output
 
     def predict(self, t, x0, u):
         y_pred = self.__call__(t, x0, u).numpy()
