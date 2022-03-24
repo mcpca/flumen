@@ -42,9 +42,10 @@ class TrajectoryGenerator:
 
             return self._dyn(y, u)
 
-        t_samples = np.sort(self._init_time +
-                            (time_horizon - self._init_time) *
-                            lhs(1, n_samples).ravel())
+        t_samples = self._init_time + (time_horizon - self._init_time) * lhs(
+            1, n_samples).ravel()
+        t_samples = np.append(t_samples, [self._init_time])
+        t_samples = np.sort(t_samples)
 
         traj = solve_ivp(
             f,
@@ -71,7 +72,7 @@ class TrajectoryDataset(Dataset):
         ]
 
         seq_len = examples[0][-1].size
-        self.len = n_samples * n_trajectories
+        self.len = (1 + n_samples) * n_trajectories
 
         self.init_state = torch.empty((self.len, generator._n))
         self.time = torch.empty((self.len, 1))
