@@ -1,3 +1,5 @@
+import numpy as np
+
 class Dynamics:
     def __init__(self, state_dim, control_dim):
         self.n = state_dim
@@ -46,3 +48,18 @@ class FitzHughNagumo(Dynamics):
         dw = (v - self.a - self.b * w) / self.tau
 
         return (dv, dw)
+
+
+class Pendulum(Dynamics):
+    def __init__(self, damping, freq=2 * np.pi):
+        super().__init__(2, 1)
+        self.damping = damping
+        self.freq2 = freq ** 2
+
+    def _dx(self, x, u):
+        p, v = x
+
+        dp = v
+        dv = -self.freq2 * np.sin(p) - self.damping * v + u
+
+        return (dp, dv)
