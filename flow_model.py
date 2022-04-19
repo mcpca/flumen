@@ -27,29 +27,35 @@ class CausalFlowModel(nn.Module):
         )
 
         x_dnn_osz = self.u_rnn.num_layers * 2 * control_rnn_size
-        self.x_dnn = FFNet(in_size=1 + state_dim,
+        self.x_dnn = FFNet(in_size=state_dim,
                            out_size=x_dnn_osz,
-                           hidden_size=(5 * x_dnn_osz, 5 * x_dnn_osz))
+                           hidden_size=(5 * x_dnn_osz, 5 * x_dnn_osz,
+                                        5 * x_dnn_osz))
 
-        self.u_dnn = FFNet(in_size=1 + control_rnn_size,
+        u_dnn_isz = 1 + control_rnn_size
+        self.u_dnn = FFNet(in_size=u_dnn_isz,
                            out_size=state_dim,
-                           hidden_size=(2 * control_rnn_size,
-                                        2 * control_rnn_size))
+                           hidden_size=(5 * u_dnn_isz, 5 * u_dnn_isz,
+                                        5 * u_dnn_isz))
 
     def forward(self, t, x, u):
         # control index corresponding to each time
         t_u = torch.floor(t / self.delta).long().squeeze()
         t_rel = (t - self.delta * t_u.unsqueeze(-1)) / self.delta
 
-        h0, c0 = self.x_dnn(torch.hstack(
-            (t, x))).split(self.u_rnn.num_layers * self.control_rnn_size,
-                           dim=1)
+        hidden_states = self.x_dnn(x)
+
+        h0, c0 = hidden_states.split(self.u_rnn.num_layers *
+                                     self.control_rnn_size,
+                                     dim=1)
 
         h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
         c0 = torch.stack(c0.split(self.control_rnn_size, dim=1))
 
         encoded_controls, _ = self.u_rnn(u, (h0, c0))
-        encoded_controls = encoded_controls[range(len(t)), t_u, :]
+
+        batches = range(len(t))
+        encoded_controls = encoded_controls[batches, t_u, :]
 
         output = self.u_dnn(torch.hstack((t_rel, encoded_controls)))
 
