@@ -5,7 +5,20 @@ def validate(data, loss_fn, model, device):
     vl = 0.
 
     with torch.no_grad():
-        for (x0, t, y, u) in data:
+        for (x0, t, y, u, lengths) in data:
+            sort_idxs = torch.argsort(lengths, descending=True)
+
+            x0 = x0[sort_idxs]
+            t = t[sort_idxs]
+            y = y[sort_idxs]
+            u = u[sort_idxs]
+            lengths = lengths[sort_idxs]
+
+            u = torch.nn.utils.rnn.pack_padded_sequence(u,
+                                                        lengths,
+                                                        batch_first=True,
+                                                        enforce_sorted=True)
+
             x0 = x0.to(device)
             t = t.to(device)
             y = y.to(device)
@@ -19,7 +32,21 @@ def validate(data, loss_fn, model, device):
 
 def train(example, loss_fn, model, optimizer, epoch, device):
     model.train()
-    x0, t, y, u = example
+    x0, t, y, u, lengths = example
+
+    sort_idxs = torch.argsort(lengths, descending=True)
+
+    x0 = x0[sort_idxs]
+    t = t[sort_idxs]
+    y = y[sort_idxs]
+    u = u[sort_idxs]
+    lengths = lengths[sort_idxs]
+
+    u = torch.nn.utils.rnn.pack_padded_sequence(u,
+                                                lengths,
+                                                batch_first=True,
+                                                enforce_sorted=True)
+
     x0 = x0.to(device)
     t = t.to(device)
     y = y.to(device)

@@ -52,11 +52,9 @@ class CausalFlowModel(nn.Module):
         h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
         c0 = torch.stack(c0.split(self.control_rnn_size, dim=1))
 
-        encoded_controls, _ = self.u_rnn(u, (h0, c0))
+        _, (hf, _) = self.u_rnn(u, (h0, c0))
 
-        batches = range(len(t))
-        encoded_controls = encoded_controls[batches, t_u, :]
-
+        encoded_controls = hf[-1, :, :]
         output = self.u_dnn(torch.hstack((t_rel, encoded_controls)))
 
         return output

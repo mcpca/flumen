@@ -76,10 +76,15 @@ class TrajectoryDataset(Dataset):
 
         self.init_state = torch.empty((self.len, generator._n))
         self.time = torch.empty((self.len, 1))
-        self.control_seq = torch.empty((self.len, seq_len, 1))
         self.state = torch.empty((self.len, generator._n))
 
+        self.control_seq = torch.empty((self.len, seq_len, 1))
+        self.seq_lens = torch.empty((self.len, ), dtype=torch.long)
+
         k = 0
+
+        init_time = generator._init_time
+        delta = generator._delta
 
         for example in examples:
             x0, t, y, u = example
@@ -89,6 +94,7 @@ class TrajectoryDataset(Dataset):
                 self.time[k] = torch.from_numpy(t_)
                 self.state[k] = torch.from_numpy(x_)
                 self.control_seq[k] = torch.from_numpy(u)
+                self.seq_lens[k] = 1 + int(np.floor((t_ - init_time) / delta))
 
                 k += 1
 
@@ -105,18 +111,25 @@ class TrajectoryDataset(Dataset):
 
     def __getitem__(self, index):
         return (self.init_state[index], self.time[index], self.state[index],
-                self.control_seq[index])
+                self.control_seq[index], self.seq_lens[index])
 
 
 def pack_model_inputs(x0, t, u, delta):
-    t = torch.Tensor(t.reshape((-1, 1)))
+    t = torch.Tensor(t.reshape((-1, 1))).flip(0)
     x0 = torch.Tensor(x0.reshape((1, -1))).repeat(t.shape[0], 1)
     u_unrolled = torch.empty((t.shape[0], u.size, 1))
+    lengths = torch.empty((t.shape[0], ), dtype=torch.long)
 
-    for t_, u_ in zip(t, u_unrolled):
+    for idx, (t_, u_) in enumerate(zip(t, u_unrolled)):
         u_[:] = torch.Tensor(u)
+        lengths[idx] = 1 + int(np.floor(t_ / delta))
 
-    return x0, t, u_unrolled
+    u_packed = torch.nn.utils.rnn.pack_padded_sequence(u_unrolled,
+                                                       lengths,
+                                                       batch_first=True,
+                                                       enforce_sorted=True)
+
+    return x0, t, u_packed
 
 
 class GaussianSequence(SequenceGenerator):
