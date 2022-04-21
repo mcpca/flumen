@@ -78,7 +78,7 @@ class TrajectoryDataset(Dataset):
         self.time = torch.empty((self.len, 1))
         self.state = torch.empty((self.len, generator._n))
 
-        self.control_seq = torch.empty((self.len, seq_len, 1))
+        self.rnn_input = torch.empty((self.len, seq_len, 2))
         self.seq_lens = torch.empty((self.len, ), dtype=torch.long)
 
         k = 0
@@ -93,9 +93,15 @@ class TrajectoryDataset(Dataset):
                 self.init_state[k] = torch.from_numpy(x0)
                 self.time[k] = torch.from_numpy(t_)
                 self.state[k] = torch.from_numpy(x_)
-                self.control_seq[k] = torch.from_numpy(u)
-                self.seq_lens[k] = 1 + int(np.floor((t_ - init_time) / delta))
 
+                seq_len = 1 + int(np.floor((t_ - init_time) / delta))
+                self.seq_lens[k] = seq_len
+
+                control_seq = torch.from_numpy(u)
+                deltas = torch.ones_like(control_seq)
+                deltas[seq_len] = ((t_ - delta * seq_len) / delta).item()
+
+                self.rnn_input[k] = torch.hstack((control_seq, deltas))
                 k += 1
 
     def whiten_targets(self):
@@ -111,20 +117,26 @@ class TrajectoryDataset(Dataset):
 
     def __getitem__(self, index):
         return (self.init_state[index], self.time[index], self.state[index],
-                self.control_seq[index], self.seq_lens[index])
+                self.rnn_input[index], self.seq_lens[index])
 
 
 def pack_model_inputs(x0, t, u, delta):
     t = torch.Tensor(t.reshape((-1, 1))).flip(0)
     x0 = torch.Tensor(x0.reshape((1, -1))).repeat(t.shape[0], 1)
-    u_unrolled = torch.empty((t.shape[0], u.size, 1))
+    rnn_inputs = torch.empty((t.shape[0], u.size, 2))
     lengths = torch.empty((t.shape[0], ), dtype=torch.long)
 
-    for idx, (t_, u_) in enumerate(zip(t, u_unrolled)):
-        u_[:] = torch.Tensor(u)
-        lengths[idx] = 1 + int(np.floor(t_ / delta))
+    for idx, (t_, u_) in enumerate(zip(t, rnn_inputs)):
+        control_seq = torch.from_numpy(u)
+        deltas = torch.ones_like(control_seq)
 
-    u_packed = torch.nn.utils.rnn.pack_padded_sequence(u_unrolled,
+        seq_len = 1 + int(np.floor(t_ / delta))
+        lengths[idx] = seq_len
+        deltas[seq_len] = ((t_ - delta * seq_len) / delta).item()
+
+        u_[:] = torch.hstack((control_seq, deltas))
+
+    u_packed = torch.nn.utils.rnn.pack_padded_sequence(rnn_inputs,
                                                        lengths,
                                                        batch_first=True,
                                                        enforce_sorted=True)

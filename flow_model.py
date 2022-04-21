@@ -19,7 +19,7 @@ class CausalFlowModel(nn.Module):
         self.control_rnn_size = control_rnn_size
 
         self.u_rnn = torch.nn.LSTM(
-            input_size=control_dim,
+            input_size=1 + control_dim,
             hidden_size=control_rnn_size,
             batch_first=True,
             num_layers=3,
@@ -32,17 +32,13 @@ class CausalFlowModel(nn.Module):
                            hidden_size=(5 * x_dnn_osz, 5 * x_dnn_osz,
                                         5 * x_dnn_osz))
 
-        u_dnn_isz = 1 + control_rnn_size
+        u_dnn_isz = control_rnn_size
         self.u_dnn = FFNet(in_size=u_dnn_isz,
                            out_size=state_dim,
                            hidden_size=(5 * u_dnn_isz, 5 * u_dnn_isz,
                                         5 * u_dnn_isz))
 
     def forward(self, t, x, u):
-        # control index corresponding to each time
-        t_u = torch.floor(t / self.delta).long().squeeze()
-        t_rel = (t - self.delta * t_u.unsqueeze(-1)) / self.delta
-
         hidden_states = self.x_dnn(x)
 
         h0, c0 = hidden_states.split(self.u_rnn.num_layers *
@@ -55,7 +51,7 @@ class CausalFlowModel(nn.Module):
         _, (hf, _) = self.u_rnn(u, (h0, c0))
 
         encoded_controls = hf[-1, :, :]
-        output = self.u_dnn(torch.hstack((t_rel, encoded_controls)))
+        output = self.u_dnn(encoded_controls)
 
         return output
 
