@@ -27,6 +27,11 @@ def parse_args():
                     help="Number of state samples per trajectory",
                     default=50)
 
+    ap.add_argument('--examples_per_traj',
+                    type=positive_int,
+                    help="Number of training examples per trajectory",
+                    default=25)
+
     ap.add_argument(
         '--train_val_split',
         type=percentage,

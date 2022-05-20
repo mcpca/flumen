@@ -13,7 +13,8 @@ import time
 
 
 def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
-             control_delta, n_trajectories, n_samples, time_horizon):
+             control_delta, n_trajectories, n_samples, time_horizon,
+             examples_per_traj):
     trajectory_generator = TrajectoryGenerator(
         dynamics,
         control_delta=control_delta,
@@ -22,7 +23,8 @@ def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
     traj_data = TrajectoryDataset(trajectory_generator,
                                   n_trajectories=n_trajectories,
                                   n_samples=n_samples,
-                                  time_horizon=time_horizon)
+                                  time_horizon=time_horizon,
+                                  examples_per_traj=examples_per_traj)
 
     return traj_data, trajectory_generator
 
@@ -84,7 +86,8 @@ def sim_and_train(args, dynamics: Dynamics,
                                          control_delta=args.control_delta,
                                          n_trajectories=args.n_trajectories,
                                          n_samples=args.n_samples,
-                                         time_horizon=args.time_horizon)
+                                         time_horizon=args.time_horizon,
+                                         examples_per_traj=args.examples_per_traj)
 
     train_dl, val_dl, norm_center, norm_weight = preprocess(
         traj_data, batch_size=args.batch_size, split=args.train_val_split)

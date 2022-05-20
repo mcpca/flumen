@@ -3,6 +3,7 @@ from torch import nn
 
 
 class CausalFlowModel(nn.Module):
+
     def __init__(self, state_dim, control_dim, control_rnn_size, delta,
                  norm_center, norm_weight, generator):
         super(CausalFlowModel, self).__init__()
@@ -22,7 +23,7 @@ class CausalFlowModel(nn.Module):
             input_size=1 + control_dim,
             hidden_size=control_rnn_size,
             batch_first=True,
-            num_layers=3,
+            num_layers=1,
             dropout=0,
         )
 
@@ -48,9 +49,17 @@ class CausalFlowModel(nn.Module):
         h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
         c0 = torch.stack(c0.split(self.control_rnn_size, dim=1))
 
-        _, (hf, _) = self.u_rnn(u, (h0, c0))
+        rnn_out_seq_packed, _ = self.u_rnn(u, (h0, c0))
+        rnn_out_seq, _ = torch.nn.utils.rnn.pad_packed_sequence(
+            rnn_out_seq_packed, batch_first=True)
 
-        encoded_controls = hf[-1, :, :]
+        u_raw, u_lens = torch.nn.utils.rnn.pad_packed_sequence(
+            u, batch_first=True)
+        deltas = u_raw.data[:, :, -1].unsqueeze(-1)
+        partial_seq = h0[0].unsqueeze(1) + deltas * rnn_out_seq
+        encoded_controls = partial_seq[range(partial_seq.shape[0]),
+                                       u_lens - 1, :]
+
         output = self.u_dnn(encoded_controls)
 
         return output
@@ -63,6 +72,7 @@ class CausalFlowModel(nn.Module):
 
 
 class FFNet(nn.Module):
+
     def __init__(self, in_size, out_size, hidden_size, activation=nn.Tanh):
         super(FFNet, self).__init__()
 

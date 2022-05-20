@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 
 
 class SequenceGenerator:
+
     def __init__(self, rng: np.random.Generator = None):
         self._rng = rng if rng else np.random.default_rng()
 
@@ -15,6 +16,7 @@ class SequenceGenerator:
 
 
 class TrajectoryGenerator:
+
     def __init__(self,
                  dynamics,
                  control_delta,
@@ -63,46 +65,68 @@ class TrajectoryGenerator:
 
 
 class TrajectoryDataset(Dataset):
+
     def __init__(self, generator: TrajectoryGenerator, n_trajectories,
-                 n_samples, time_horizon):
-
-        examples = [
-            generator.get_example(time_horizon, n_samples)
-            for _ in range(n_trajectories)
-        ]
-
-        seq_len = examples[0][-1].size
-        self.len = (1 + n_samples) * n_trajectories
-
-        self.init_state = torch.empty((self.len, generator._n))
-        self.time = torch.empty((self.len, 1))
-        self.state = torch.empty((self.len, generator._n))
-
-        self.rnn_input = torch.empty((self.len, seq_len, 2))
-        self.seq_lens = torch.empty((self.len, ), dtype=torch.long)
-
-        k = 0
+                 n_samples, time_horizon, examples_per_traj):
 
         init_time = generator._init_time
         delta = generator._delta
 
-        for example in examples:
-            x0, t, y, u = example
+        init_state_data = []
+        end_state_data = []
+        time_data = []
+        rnn_input_data = []
+        seq_len_data = []
 
-            for x_, t_ in zip(y, t):
-                self.init_state[k] = torch.from_numpy(x0)
-                self.time[k] = torch.from_numpy(t_)
-                self.state[k] = torch.from_numpy(x_)
+        rng = np.random.default_rng()
 
-                seq_len = 1 + int(np.floor((t_ - init_time) / delta))
-                self.seq_lens[k] = seq_len
+        for _ in range(n_trajectories):
+            x0, t, y, u = generator.get_example(time_horizon, n_samples)
+            u = torch.from_numpy(u)
 
-                control_seq = torch.from_numpy(u)
-                deltas = torch.ones_like(control_seq)
-                deltas[seq_len] = ((t_ - delta * seq_len) / delta).item()
+            # generate random indexes from which samples will be taken
+            init_state_idxs = rng.integers(n_samples,
+                                           size=(examples_per_traj, ),
+                                           dtype=np.uint64)
 
-                self.rnn_input[k] = torch.hstack((control_seq, deltas))
-                k += 1
+            for start_idx in init_state_idxs:
+                end_idx = rng.integers(start_idx, n_samples)
+
+                u_start_idx = int(np.floor((t[start_idx] - init_time) / delta))
+                u_end_idx = int(np.floor((t[end_idx] - init_time) / delta))
+                u_sz = 1 + u_end_idx - u_start_idx
+
+                u_seq = torch.zeros_like(u)
+                u_seq[0:u_sz] = u[u_start_idx:(u_end_idx + 1)]
+
+                init_state_data.append(torch.from_numpy(y[start_idx]))
+                end_state_data.append(torch.from_numpy(y[end_idx]))
+                seq_len_data.append(u_sz)
+
+                time_data.append(t[end_idx] - t[start_idx])
+
+                deltas = torch.ones_like(u_seq)
+                t_u_end = init_time + delta * u_end_idx
+                t_u_start = init_time + delta * u_start_idx
+
+                if u_sz > 1:
+                    deltas[0] = (1. -
+                                 (t[start_idx] - t_u_start) / delta).item()
+                    deltas[u_sz - 1] = ((t[end_idx] - t_u_end) / delta).item()
+                else:
+                    deltas[0] = ((t[end_idx] - t[start_idx]) / delta).item()
+
+                rnn_input_data.append(torch.hstack((u_seq, deltas)))
+
+        self.init_state = torch.stack(init_state_data).type(
+            torch.get_default_dtype())
+        self.state = torch.stack(end_state_data).type(
+            torch.get_default_dtype())
+        self.time = torch.tensor(time_data, dtype=torch.get_default_dtype())
+        self.rnn_input = torch.stack(rnn_input_data).type(
+            torch.get_default_dtype())
+        self.seq_lens = torch.tensor(seq_len_data, dtype=torch.long)
+        self.len = self.seq_lens.shape[0]
 
     def whiten_targets(self):
         mean = self.state.mean(axis=0)
@@ -132,7 +156,7 @@ def pack_model_inputs(x0, t, u, delta):
 
         seq_len = 1 + int(np.floor(t_ / delta))
         lengths[idx] = seq_len
-        deltas[seq_len] = ((t_ - delta * seq_len) / delta).item()
+        deltas[seq_len - 1] = ((t_ - delta * seq_len) / delta).item()
 
         u_[:] = torch.hstack((control_seq, deltas))
 
@@ -145,6 +169,7 @@ def pack_model_inputs(x0, t, u, delta):
 
 
 class GaussianSequence(SequenceGenerator):
+
     def __init__(self, mean=0., std=1., rng=None):
         super(GaussianSequence, self).__init__(rng)
 
@@ -162,6 +187,7 @@ class GaussianSequence(SequenceGenerator):
 
 
 class GaussianSqWave(SequenceGenerator):
+
     def __init__(self, period, mean=0., std=1., rng=None):
         super(GaussianSqWave, self).__init__(rng)
 
@@ -185,6 +211,7 @@ class GaussianSqWave(SequenceGenerator):
 
 
 class RandomWalkSequence(SequenceGenerator):
+
     def __init__(self, mean=0., std=1., rng=None):
         super(RandomWalkSequence, self).__init__(rng)
 
@@ -204,6 +231,7 @@ class RandomWalkSequence(SequenceGenerator):
 
 
 class SinusoidalSequence(SequenceGenerator):
+
     def __init__(self, rng=None):
         super(SinusoidalSequence, self).__init__(rng)
 
