@@ -55,10 +55,10 @@ class CausalFlowModel(nn.Module):
 
         u_raw, u_lens = torch.nn.utils.rnn.pad_packed_sequence(
             u, batch_first=True)
-        deltas = u_raw.data[:, :, -1].unsqueeze(-1)
-        partial_seq = h0[0].unsqueeze(1) + deltas * rnn_out_seq
-        encoded_controls = partial_seq[range(partial_seq.shape[0]),
-                                       u_lens - 1, :]
+        deltas = u_raw[:, :, -1].unsqueeze(-1)
+        partial_seq = h0[-1].unsqueeze(1) + torch.cumsum(deltas * rnn_out_seq,
+                                                         dim=1)
+        encoded_controls = partial_seq[:, -1, :]
 
         output = self.u_dnn(encoded_controls)
 

@@ -116,6 +116,8 @@ class TrajectoryDataset(Dataset):
                 else:
                     deltas[0] = ((t[end_idx] - t[start_idx]) / delta).item()
 
+                deltas[u_sz:] = 0.
+
                 rnn_input_data.append(torch.hstack((u_seq, deltas)))
 
         self.init_state = torch.stack(init_state_data).type(
@@ -156,7 +158,8 @@ def pack_model_inputs(x0, t, u, delta):
 
         seq_len = 1 + int(np.floor(t_ / delta))
         lengths[idx] = seq_len
-        deltas[seq_len - 1] = ((t_ - delta * seq_len) / delta).item()
+        deltas[seq_len - 1] = ((t_ - delta * (seq_len - 1)) / delta).item()
+        deltas[seq_len:] = 0.
 
         u_[:] = torch.hstack((control_seq, deltas))
 
