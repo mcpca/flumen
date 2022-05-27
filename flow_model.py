@@ -27,7 +27,7 @@ class CausalFlowModel(nn.Module):
             dropout=0,
         )
 
-        x_dnn_osz = self.u_rnn.num_layers * 2 * control_rnn_size
+        x_dnn_osz = self.u_rnn.num_layers * control_rnn_size
         self.x_dnn = FFNet(in_size=state_dim,
                            out_size=x_dnn_osz,
                            hidden_size=(5 * x_dnn_osz, 5 * x_dnn_osz,
@@ -40,27 +40,25 @@ class CausalFlowModel(nn.Module):
                                         5 * u_dnn_isz))
 
     def forward(self, t, x, u):
-        hidden_states = self.x_dnn(x)
-
-        h0, c0 = hidden_states.split(self.u_rnn.num_layers *
-                                     self.control_rnn_size,
-                                     dim=1)
+        h0 = self.x_dnn(x)
 
         h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
-        c0 = torch.stack(c0.split(self.control_rnn_size, dim=1))
+        c0 = torch.zeros_like(h0)
 
         rnn_out_seq_packed, _ = self.u_rnn(u, (h0, c0))
-        rnn_out_seq, _ = torch.nn.utils.rnn.pad_packed_sequence(
-            rnn_out_seq_packed, batch_first=True)
+        h, _ = torch.nn.utils.rnn.pad_packed_sequence(rnn_out_seq_packed,
+                                                      batch_first=True)
 
         u_raw, u_lens = torch.nn.utils.rnn.pad_packed_sequence(
             u, batch_first=True)
         deltas = u_raw[:, :, -1].unsqueeze(-1)
-        partial_seq = h0[-1].unsqueeze(1) + torch.cumsum(deltas * rnn_out_seq,
-                                                         dim=1)
-        encoded_controls = partial_seq[:, -1, :]
 
-        output = self.u_dnn(encoded_controls)
+        h_shift = torch.roll(h, shifts=1, dims=1)
+        h_shift[:, 0, :] = h0[-1]
+
+        encoded_controls = (1 - deltas) * h_shift + deltas * h
+        output = self.u_dnn(encoded_controls[range(encoded_controls.shape[0]),
+                                             u_lens - 1, :])
 
         return output
 
