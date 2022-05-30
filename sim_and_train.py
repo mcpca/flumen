@@ -79,15 +79,27 @@ def training_loop(model, loss_fn, optimizer, sched, early_stop, train_dl,
     return loss, val_loss, train_time
 
 
-def sim_and_train(args, dynamics: Dynamics,
-                  control_generator: SequenceGenerator):
-    traj_data, traj_generator = simulate(dynamics,
-                                         control_generator,
-                                         control_delta=args.control_delta,
-                                         n_trajectories=args.n_trajectories,
-                                         n_samples=args.n_samples,
-                                         time_horizon=args.time_horizon,
-                                         examples_per_traj=args.examples_per_traj)
+def sim_and_train(args,
+                  dynamics: Dynamics = None,
+                  control_generator: SequenceGenerator = None,
+                  load_data=False):
+
+    if load_data:
+        traj_data, traj_generator = torch.load(args.load_data)
+        dynamics = traj_generator._dyn
+
+    else:
+        traj_data, traj_generator = simulate(
+            dynamics,
+            control_generator,
+            control_delta=args.control_delta,
+            n_trajectories=args.n_trajectories,
+            n_samples=args.n_samples,
+            time_horizon=args.time_horizon,
+            examples_per_traj=args.examples_per_traj)
+
+    if args.save_data:
+        torch.save((traj_data, traj_generator), f'outputs/{args.save_data}')
 
     train_dl, val_dl, norm_center, norm_weight = preprocess(
         traj_data, batch_size=args.batch_size, split=args.train_val_split)

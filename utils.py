@@ -73,6 +73,16 @@ def parse_args():
                     help="Path to write .pth model",
                     default=None)
 
+    ap.add_argument('--save_data',
+                    type=str,
+                    help="Path to write .pth trajectory dataset",
+                    default=None)
+
+    ap.add_argument('--load_data',
+                    type=str,
+                    help="Path to load .pth trajectory dataset",
+                    default=None)
+
     return ap.parse_args()
 
 
