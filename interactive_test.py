@@ -19,6 +19,9 @@ def main():
 
     trajectory_generator: TrajectoryGenerator = model.generator
 
+    weight = model.weight
+    center = model.center
+
     with torch.no_grad():
         while True:
             fig, ax = plt.subplots()
@@ -26,7 +29,8 @@ def main():
             x0, t, y, u = trajectory_generator.get_example(time_horizon=50.,
                                                            n_samples=10000)
 
-            x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
+            x0_feed, t_feed, u_feed = pack_model_inputs(
+                x0, t, u, delta, center, weight)
 
             y_pred = model.predict(t_feed, x0_feed, u_feed)
             ax.plot(t_feed, y_pred, 'k', label='Prediction')

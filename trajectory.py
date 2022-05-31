@@ -92,33 +92,15 @@ class TrajectoryDataset(Dataset):
             for start_idx in init_state_idxs:
                 end_idx = rng.integers(start_idx, n_samples)
 
-                u_start_idx = int(np.floor((t[start_idx] - init_time) / delta))
-                u_end_idx = int(np.floor((t[end_idx] - init_time) / delta))
-                u_sz = 1 + u_end_idx - u_start_idx
-
-                u_seq = torch.zeros_like(u)
-                u_seq[0:u_sz] = u[u_start_idx:(u_end_idx + 1)]
-
                 init_state_data.append(torch.from_numpy(y[start_idx]))
                 end_state_data.append(torch.from_numpy(y[end_idx]))
-                seq_len_data.append(u_sz)
-
                 time_data.append(t[end_idx] - t[start_idx])
 
-                deltas = torch.ones_like(u_seq)
-                t_u_end = init_time + delta * u_end_idx
-                t_u_start = init_time + delta * u_start_idx
+                rnn_input, rnn_input_len = self.process_example(
+                    start_idx, end_idx, t, u, init_time, delta)
 
-                if u_sz > 1:
-                    deltas[0] = (1. -
-                                 (t[start_idx] - t_u_start) / delta).item()
-                    deltas[u_sz - 1] = ((t[end_idx] - t_u_end) / delta).item()
-                else:
-                    deltas[0] = ((t[end_idx] - t[start_idx]) / delta).item()
-
-                deltas[u_sz:] = 0.
-
-                rnn_input_data.append(torch.hstack((u_seq, deltas)))
+                seq_len_data.append(rnn_input_len)
+                rnn_input_data.append(rnn_input)
 
         self.init_state = torch.stack(init_state_data).type(
             torch.get_default_dtype())
@@ -130,11 +112,39 @@ class TrajectoryDataset(Dataset):
         self.seq_lens = torch.tensor(seq_len_data, dtype=torch.long)
         self.len = self.seq_lens.shape[0]
 
+    @staticmethod
+    def process_example(start_idx, end_idx, t, u, init_time, delta):
+        u_start_idx = int(np.floor((t[start_idx] - init_time) / delta))
+        u_end_idx = int(np.floor((t[end_idx] - init_time) / delta))
+        u_sz = 1 + u_end_idx - u_start_idx
+
+        u_seq = torch.zeros_like(u)
+        u_seq[0:u_sz] = u[u_start_idx:(u_end_idx + 1)]
+
+        deltas = torch.ones_like(u_seq)
+        t_u_end = init_time + delta * u_end_idx
+        t_u_start = init_time + delta * u_start_idx
+
+        if u_sz > 1:
+            deltas[0] = (1. - (t[start_idx] - t_u_start) / delta).item()
+            deltas[u_sz - 1] = ((t[end_idx] - t_u_end) / delta).item()
+        else:
+            deltas[0] = ((t[end_idx] - t[start_idx]) / delta).item()
+
+        deltas[u_sz:] = 0.
+
+        rnn_input = torch.hstack((u_seq, deltas))
+
+        return rnn_input, u_sz
+
     def whiten_targets(self):
         mean = self.state.mean(axis=0)
         std = sqrtm(np.cov(self.state.T))
 
-        self.state[:] = (self.state - mean) @ inv(std)
+        istd = inv(std)
+
+        self.state[:] = (self.state - mean) @ istd
+        self.init_state[:] = (self.init_state - mean) @ istd
 
         return mean, std
 
@@ -146,11 +156,13 @@ class TrajectoryDataset(Dataset):
                 self.rnn_input[index], self.seq_lens[index])
 
 
-def pack_model_inputs(x0, t, u, delta):
+def pack_model_inputs(x0, t, u, delta, mean, std):
     t = torch.Tensor(t.reshape((-1, 1))).flip(0)
     x0 = torch.Tensor(x0.reshape((1, -1))).repeat(t.shape[0], 1)
     rnn_inputs = torch.empty((t.shape[0], u.size, 2))
     lengths = torch.empty((t.shape[0], ), dtype=torch.long)
+
+    x0[:] = (x0 - mean) @ inv(std)
 
     for idx, (t_, u_) in enumerate(zip(t, rnn_inputs)):
         control_seq = torch.from_numpy(u)
