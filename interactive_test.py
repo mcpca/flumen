@@ -26,8 +26,8 @@ def main():
         while True:
             fig, ax = plt.subplots()
 
-            x0, t, y, u = trajectory_generator.get_example(time_horizon=50.,
-                                                           n_samples=10000)
+            x0, t, y, u = trajectory_generator.get_example(time_horizon=100.,
+                                                           n_samples=1000)
 
             x0_feed, t_feed, u_feed = pack_model_inputs(
                 x0, t, u, delta, center, weight)

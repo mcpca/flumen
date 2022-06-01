@@ -35,6 +35,7 @@ class VanDerPol(Dynamics):
 
 
 class FitzHughNagumo(Dynamics):
+
     def __init__(self, tau, a, b):
         super().__init__(2, 1)
         self.tau = tau
@@ -44,7 +45,7 @@ class FitzHughNagumo(Dynamics):
     def _dx(self, x, u):
         v, w = x
 
-        dv = v - v**3 - w + u
+        dv = 50 * (v - v**3 - w + u)
         dw = (v - self.a - self.b * w) / self.tau
 
         return (dv, dw)

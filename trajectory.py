@@ -225,6 +225,30 @@ class GaussianSqWave(SequenceGenerator):
         return control_seq
 
 
+class LogNormalSqWave(SequenceGenerator):
+
+    def __init__(self, period, mean=0., std=1., rng=None):
+        super(LogNormalSqWave, self).__init__(rng)
+
+        self._period = period
+        self._mean = mean
+        self._std = std
+
+    def _sample_impl(self, time_range, delta):
+        n_control_vals = int(1 +
+                             np.floor((time_range[1] - time_range[0]) / delta))
+
+        n_amplitude_vals = int(np.ceil(n_control_vals / self._period))
+
+        amp_seq = self._rng.lognormal(mean=self._mean,
+                                      sigma=self._std,
+                                      size=(n_amplitude_vals, 1))
+
+        control_seq = np.repeat(amp_seq, self._period, axis=0)[:n_control_vals]
+
+        return control_seq
+
+
 class RandomWalkSequence(SequenceGenerator):
 
     def __init__(self, mean=0., std=1., rng=None):
