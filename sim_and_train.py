@@ -113,10 +113,6 @@ def sim_and_train(args,
                             generator=traj_generator)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    if torch.cuda.is_available() and torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)
-
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
