@@ -48,6 +48,11 @@ def parse_args():
                     help="Size of the RNN hidden state",
                     default=6)
 
+    ap.add_argument('--control_rnn_depth',
+                    type=positive_int,
+                    help="Depth of the RNN",
+                    default=1)
+
     ap.add_argument('--lr',
                     type=positive_float,
                     help="Initial learning rate",

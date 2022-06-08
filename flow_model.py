@@ -5,7 +5,7 @@ from torch import nn
 class CausalFlowModel(nn.Module):
 
     def __init__(self, state_dim, control_dim, control_rnn_size, delta,
-                 norm_center, norm_weight, generator):
+                 norm_center, norm_weight, generator, num_layers=1):
         super(CausalFlowModel, self).__init__()
 
         self.generator = generator
@@ -23,7 +23,7 @@ class CausalFlowModel(nn.Module):
             input_size=1 + control_dim,
             hidden_size=control_rnn_size,
             batch_first=True,
-            num_layers=1,
+            num_layers=num_layers,
             dropout=0,
         )
 
