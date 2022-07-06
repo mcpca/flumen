@@ -72,41 +72,43 @@ class TrajectoryDataset(Dataset):
         init_time = generator._init_time
         delta = generator._delta
 
-        init_state_data = []
-        end_state_data = []
-        time_data = []
+        n_examples = n_trajectories * examples_per_traj
+
+        self.init_state = torch.empty(
+            (n_examples, generator._n)).type(torch.get_default_dtype())
+        self.state = torch.empty(
+            (n_examples, generator._n)).type(torch.get_default_dtype())
+        self.time = torch.empty(
+            (n_examples, 1)).type(torch.get_default_dtype())
         rnn_input_data = []
         seq_len_data = []
 
         rng = np.random.default_rng()
 
-        for _ in range(n_trajectories):
+        for k_tr in range(n_trajectories):
             x0, t, y, u = generator.get_example(time_horizon, n_samples)
             u = torch.from_numpy(u)
 
+            self.init_state[k_tr * examples_per_traj:(k_tr + 1) *
+                            examples_per_traj] = torch.from_numpy(x0)
+
             # generate random indexes from which samples will be taken
-            init_state_idxs = rng.integers(n_samples,
-                                           size=(examples_per_traj, ),
-                                           dtype=np.uint64)
+            end_state_idxs = rng.integers(n_samples,
+                                          size=(examples_per_traj, ),
+                                          dtype=np.uint64)
 
-            for start_idx in init_state_idxs:
-                end_idx = rng.integers(start_idx, n_samples)
-
-                init_state_data.append(torch.from_numpy(y[start_idx]))
-                end_state_data.append(torch.from_numpy(y[end_idx]))
-                time_data.append(t[end_idx] - t[start_idx])
+            for k_ei, end_idx in enumerate(end_state_idxs):
+                self.state[k_tr * examples_per_traj + k_ei] = torch.from_numpy(
+                    y[end_idx])
+                self.time[k_tr * examples_per_traj +
+                          k_ei] = torch.from_numpy(t[end_idx] - init_time)
 
                 rnn_input, rnn_input_len = self.process_example(
-                    start_idx, end_idx, t, u, init_time, delta)
+                    0, end_idx, t, u, init_time, delta)
 
                 seq_len_data.append(rnn_input_len)
                 rnn_input_data.append(rnn_input)
 
-        self.init_state = torch.stack(init_state_data).type(
-            torch.get_default_dtype())
-        self.state = torch.stack(end_state_data).type(
-            torch.get_default_dtype())
-        self.time = torch.tensor(time_data, dtype=torch.get_default_dtype())
         self.rnn_input = torch.stack(rnn_input_data).type(
             torch.get_default_dtype())
         self.seq_lens = torch.tensor(seq_len_data, dtype=torch.long)
