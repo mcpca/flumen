@@ -117,7 +117,9 @@ def sim_and_train(args,
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, cooldown=2)
+    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                       cooldown=2,
+                                                       factor=0.5)
     mse_loss = torch.nn.MSELoss().to(device)
 
     early_stop = EarlyStopping(es_patience=args.es_patience,
