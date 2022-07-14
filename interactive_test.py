@@ -1,4 +1,5 @@
 import torch
+from utils import TrainedModel
 from flow_model import CausalFlowModel
 from trajectory import TrajectoryGenerator, pack_model_inputs
 import matplotlib.pyplot as plt
@@ -7,17 +8,16 @@ import sys
 
 
 def main():
-    model: CausalFlowModel = torch.load(sys.argv[1],
-                                        map_location=torch.device('cpu'))
+    model: TrainedModel = torch.load(sys.argv[1],
+                                     map_location=torch.device('cpu'))
 
-    if isinstance(model, torch.nn.DataParallel):
-        model = model.module
+    print(model)
 
+    model = model.model
     model.eval()
 
-    delta = model.delta.item()
-
     trajectory_generator: TrajectoryGenerator = model.generator
+    delta = trajectory_generator._delta
 
     weight = model.weight
     center = model.center
@@ -27,7 +27,7 @@ def main():
             fig, ax = plt.subplots()
 
             x0, t, y, u = trajectory_generator.get_example(time_horizon=100.,
-                                                           n_samples=1000)
+                                                           n_samples=10000)
 
             x0_feed, t_feed, u_feed = pack_model_inputs(
                 x0, t, u, delta, center, weight)

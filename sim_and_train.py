@@ -9,6 +9,8 @@ from flow_model import CausalFlowModel
 from train import EarlyStopping, train, validate
 from dynamics import Dynamics
 
+from utils import TrainedModel
+
 import time
 
 
@@ -44,7 +46,7 @@ def preprocess(traj_data, batch_size, split):
 
 
 def training_loop(model, loss_fn, optimizer, sched, early_stop, train_dl,
-                  val_dl, device, max_epochs, model_save_path):
+                  val_dl, device, max_epochs):
     print('Epoch :: Loss (Train) :: Loss (Val) :: Best (Val)')
     print('=================================================')
 
@@ -53,14 +55,15 @@ def training_loop(model, loss_fn, optimizer, sched, early_stop, train_dl,
     for epoch in range(max_epochs):
         loss = 0.
 
-        model.train()
+        model.model.train()
         for example in train_dl:
-            loss += train(example, loss_fn, model, optimizer, epoch, device)
+            loss += train(example, loss_fn, model.model, optimizer, epoch,
+                          device)
 
         loss /= len(train_dl)
 
-        model.eval()
-        val_loss = validate(val_dl, loss_fn, model, device)
+        model.model.eval()
+        val_loss = validate(val_dl, loss_fn, model.model, device)
         sched.step(val_loss)
         early_stop.step(val_loss)
 
@@ -68,8 +71,8 @@ def training_loop(model, loss_fn, optimizer, sched, early_stop, train_dl,
             f"{epoch + 1:>5d} :: {loss:>7e} :: {val_loss:>7e} :: {early_stop.best_val_loss:>7e}"
         )
 
-        if early_stop.best_model and model_save_path:
-            torch.save(model, f'outputs/{model_save_path}')
+        if early_stop.best_model:
+            model.save()
 
         if early_stop.early_stop:
             break
@@ -116,6 +119,8 @@ def sim_and_train(args,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
+    model_wrapped = TrainedModel(args, model)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                                                        cooldown=2,
@@ -125,7 +130,7 @@ def sim_and_train(args,
     early_stop = EarlyStopping(es_patience=args.es_patience,
                                es_delta=args.es_delta)
 
-    loss, val_loss, train_time = training_loop(model,
+    loss, val_loss, train_time = training_loop(model_wrapped,
                                                mse_loss,
                                                optimizer,
                                                sched,
@@ -133,7 +138,6 @@ def sim_and_train(args,
                                                train_dl,
                                                val_dl,
                                                device,
-                                               max_epochs=args.n_epochs,
-                                               model_save_path=args.save_model)
+                                               max_epochs=args.n_epochs)
 
     print(f"Training took {train_time:.2f} seconds.")

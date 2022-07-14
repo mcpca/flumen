@@ -1,7 +1,8 @@
 import torch
 
-import argparse
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
+
+import sys, uuid, subprocess, time, datetime, os, inspect
 
 
 def parse_args():
@@ -75,7 +76,7 @@ def parse_args():
 
     ap.add_argument('--save_model',
                     type=str,
-                    help="Path to write .pth model",
+                    help="Subdirectory where the model will be saved",
                     default=None)
 
     ap.add_argument('--save_data',
@@ -95,7 +96,7 @@ def positive_int(value):
     value = int(value)
 
     if value <= 0:
-        raise argparse.ArgumentTypeError(f"{value} is not a positive integer")
+        raise ArgumentTypeError(f"{value} is not a positive integer")
 
     return value
 
@@ -104,7 +105,7 @@ def positive_float(value):
     value = float(value)
 
     if value <= 0:
-        raise argparse.ArgumentTypeError(f"{value} is not a positive float")
+        raise ArgumentTypeError(f"{value} is not a positive float")
 
     return value
 
@@ -113,7 +114,7 @@ def nonnegative_float(value):
     value = float(value)
 
     if value < 0:
-        raise argparse.ArgumentTypeError(f"{value} is not a nonnegative float")
+        raise ArgumentTypeError(f"{value} is not a nonnegative float")
 
     return value
 
@@ -122,9 +123,10 @@ def percentage(value):
     value = int(value)
 
     if not (0 <= value <= 100):
-        raise argparse.ArgumentTypeError(f"{value} is not a valid percentage")
+        raise ArgumentTypeError(f"{value} is not a valid percentage")
 
     return value
+
 
 def print_gpu_info():
     if torch.cuda.is_available():
@@ -139,3 +141,71 @@ def print_gpu_info():
                 msg += " [Current]"
 
             print(msg)
+
+
+def timestamp_str(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp).strftime(
+        '%Y%m%d_%H%M%S') if timestamp else "N/A"
+
+
+def save_path(dir, timestamp, train_id):
+    file_name = dir + '_' + timestamp_str(timestamp) + '_' + str(
+        train_id.hex) + '.pth'
+
+    path = os.path.join(os.path.dirname(__file__), 'outputs', dir)
+
+    return path, file_name
+
+
+class TrainedModel:
+
+    def __init__(self, args, model):
+        self.train_id = uuid.uuid4()
+
+        self.cmd = ' '.join(sys.argv)
+        self.args = args
+        self.model = model
+
+        self.save_timestamp = None
+
+        try:
+            self.git_head = subprocess.check_output(
+                ['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+        except:
+            self.git_head = None
+
+        if args.save_model:
+            self.save_path, self.file_name = save_path(args.save_model,
+                                                       time.time(),
+                                                       self.train_id)
+            os.makedirs(self.save_path, exist_ok=True)
+        else:
+            self.save_path = None
+            self.file_name = None
+
+        if args.load_data:
+            self.data_path = os.path.abspath(args.load_data)
+        else:
+            self.data_path = None
+
+    def save(self):
+        if self.save_path:
+            self.save_timestamp = time.time()
+            torch.save(self, os.path.join(self.save_path, self.file_name))
+
+    def args(self):
+        out_str = ""
+
+        for k, v in vars(self.args):
+            out_str += f"{k}: {v}\n"
+
+        return out_str
+
+    def __str__(self):
+        return inspect.cleandoc(f'''\
+            --- Trained model {self.file_name}
+                Timestamp: {timestamp_str(self.save_timestamp)}
+                Git hash: {self.git_head if self.git_head else 'N/A'}
+                Command line: {self.cmd}
+                Data: {self.data_path if self.data_path else 'N/A'}
+        ''')
