@@ -30,7 +30,7 @@ def validate(data, loss_fn, model, device):
     return vl / len(data)
 
 
-def train(example, loss_fn, model, optimizer, epoch, device):
+def train(example, loss_fn, model, optimizer, device):
     model.train()
     x0, t, y, u, lengths = example
 

@@ -4,16 +4,13 @@ from torch import nn
 
 class CausalFlowModel(nn.Module):
 
-    def __init__(self, state_dim, control_dim, control_rnn_size, delta,
+    def __init__(self, state_dim, control_dim, control_rnn_size,
                  norm_center, norm_weight, generator, num_layers=1):
         super(CausalFlowModel, self).__init__()
 
         self.generator = generator
         self.center = norm_center
         self.weight = norm_weight
-
-        delta = torch.tensor((delta, ))
-        self.register_buffer('delta', delta)
 
         self.state_dim = state_dim
         self.control_dim = control_dim

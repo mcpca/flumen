@@ -57,8 +57,7 @@ def training_loop(model, loss_fn, optimizer, sched, early_stop, train_dl,
 
         model.model.train()
         for example in train_dl:
-            loss += train(example, loss_fn, model.model, optimizer, epoch,
-                          device)
+            loss += train(example, loss_fn, model.model, optimizer, device)
 
         loss /= len(train_dl)
 
@@ -111,7 +110,6 @@ def sim_and_train(args,
                             control_dim=dynamics.m,
                             control_rnn_size=args.control_rnn_size,
                             num_layers=args.control_rnn_depth,
-                            delta=args.control_delta,
                             norm_center=norm_center,
                             norm_weight=norm_weight,
                             generator=traj_generator)
