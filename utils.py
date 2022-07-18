@@ -2,7 +2,7 @@ import torch
 
 from argparse import ArgumentParser, ArgumentTypeError
 
-import sys, uuid, subprocess, time, datetime, os
+import sys, uuid, subprocess, time, datetime, os, inspect
 
 
 def parse_args():
@@ -143,25 +143,30 @@ def print_gpu_info():
             print(msg)
 
 
-def save_path(args, id):
-    if not args.save_model:
-        return None
+def timestamp_str(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp).strftime(
+        '%Y%m%d_%H%M%S') if timestamp else "N/A"
 
-    file_name = args.save_model + str(id.hex)
-    path = os.path.join(os.path.dirname(__file__), 'outputs',
-                        file_name + '.pth')
+
+def save_path(dir, timestamp, train_id):
+    file_name = dir + '_' + timestamp_str(timestamp) + '_' + str(
+        train_id.hex) + '.pth'
+
+    path = os.path.join(os.path.dirname(__file__), 'outputs', dir)
 
     return path, file_name
 
 
 class TrainedModel:
 
-    def __init__(self, args):
-        self.__id = uuid.uuid4()
+    def __init__(self, args, model):
+        self.train_id = uuid.uuid4()
 
         self.cmd = ' '.join(sys.argv)
         self.args = args
-        self.timestamp = None
+        self.model = model
+
+        self.save_timestamp = None
 
         try:
             self.git_head = subprocess.check_output(
@@ -170,7 +175,10 @@ class TrainedModel:
             self.git_head = None
 
         if args.save_model:
-            self.save_path, self.file_name = save_path(args)
+            self.save_path, self.file_name = save_path(args.save_model,
+                                                       time.time(),
+                                                       self.train_id)
+            os.makedirs(self.save_path, exist_ok=True)
         else:
             self.save_path = None
             self.file_name = None
@@ -180,21 +188,24 @@ class TrainedModel:
         else:
             self.data_path = None
 
-        self.flow_model = None
-
-    def set_model(self, model):
-        self.flow_model = model
-        self.timestamp = time.time()
-
     def save(self):
-        torch.save(self, self.save_path)
+        if self.save_path:
+            self.save_timestamp = time.time()
+            torch.save(self, os.path.join(self.save_path, self.file_name))
+
+    def args(self):
+        out_str = ""
+
+        for k, v in vars(self.args):
+            out_str += f"{k}: {v}\n"
+
+        return out_str
 
     def __str__(self):
-        out_str = f'''\
+        return inspect.cleandoc(f'''\
             --- Trained model {self.file_name}
-                Timestamp: {datetime.datetime.fromtimestamp(self.timestamp).strftime('%Y/%m/%d %H:%M:%s')}
+                Timestamp: {timestamp_str(self.save_timestamp)}
                 Git hash: {self.git_head if self.git_head else 'N/A'}
                 Command line: {self.cmd}
                 Data: {self.data_path if self.data_path else 'N/A'}
-        '''
-        return out_str
+        ''')
