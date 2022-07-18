@@ -2,7 +2,9 @@ import torch
 
 from argparse import ArgumentParser, ArgumentTypeError
 
-import sys, uuid, subprocess, time, datetime, os, inspect
+import sys, uuid, subprocess, time, datetime, os
+from inspect import cleandoc
+from shlex import quote
 
 
 def parse_args():
@@ -159,12 +161,17 @@ def save_path(dir, timestamp, train_id):
 
 class TrainedModel:
 
-    def __init__(self, args, model):
+    def __init__(self, args, model, generator, train_data_mean,
+                 train_data_std):
         self.train_id = uuid.uuid4()
 
-        self.cmd = ' '.join(sys.argv)
+        self.cmd = ' '.join((quote(arg) for arg in sys.argv))
         self.args = args
+
         self.model = model
+        self.generator = generator
+        self.td_mean = train_data_mean
+        self.td_std = train_data_std
 
         self.save_timestamp = None
 
@@ -193,7 +200,13 @@ class TrainedModel:
             self.save_timestamp = time.time()
             torch.save(self, os.path.join(self.save_path, self.file_name))
 
-    def args(self):
+    def predict(self, t, x0, u):
+        y_pred = self.model(t, x0, u).numpy()
+        y_pred[:] = self.td_mean + y_pred @ self.td_std
+
+        return y_pred
+
+    def args_str(self):
         out_str = ""
 
         for k, v in vars(self.args):
@@ -202,7 +215,7 @@ class TrainedModel:
         return out_str
 
     def __str__(self):
-        return inspect.cleandoc(f'''\
+        return cleandoc(f'''\
             --- Trained model {self.file_name}
                 Timestamp: {timestamp_str(self.save_timestamp)}
                 Git hash: {self.git_head if self.git_head else 'N/A'}

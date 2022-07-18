@@ -1,6 +1,5 @@
 import torch
 from utils import TrainedModel
-from flow_model import CausalFlowModel
 from trajectory import TrajectoryGenerator, pack_model_inputs
 import matplotlib.pyplot as plt
 
@@ -13,14 +12,13 @@ def main():
 
     print(model)
 
-    model = model.model
-    model.eval()
+    model.model.eval()
 
     trajectory_generator: TrajectoryGenerator = model.generator
     delta = trajectory_generator._delta
 
-    weight = model.weight
-    center = model.center
+    weight = model.td_std
+    center = model.td_mean
 
     with torch.no_grad():
         while True:

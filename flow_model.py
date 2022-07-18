@@ -4,13 +4,12 @@ from torch import nn
 
 class CausalFlowModel(nn.Module):
 
-    def __init__(self, state_dim, control_dim, control_rnn_size,
-                 norm_center, norm_weight, generator, num_layers=1):
+    def __init__(self,
+                 state_dim,
+                 control_dim,
+                 control_rnn_size,
+                 num_layers=1):
         super(CausalFlowModel, self).__init__()
-
-        self.generator = generator
-        self.center = norm_center
-        self.weight = norm_weight
 
         self.state_dim = state_dim
         self.control_dim = control_dim
@@ -27,14 +26,12 @@ class CausalFlowModel(nn.Module):
         x_dnn_osz = self.u_rnn.num_layers * 2 * control_rnn_size
         self.x_dnn = FFNet(in_size=state_dim,
                            out_size=x_dnn_osz,
-                           hidden_size=(5 * x_dnn_osz, 5 * x_dnn_osz,
-                                        5 * x_dnn_osz))
+                           hidden_size=3 * (5 * x_dnn_osz, ))
 
         u_dnn_isz = control_rnn_size
         self.u_dnn = FFNet(in_size=u_dnn_isz,
                            out_size=state_dim,
-                           hidden_size=(5 * u_dnn_isz, 5 * u_dnn_isz,
-                                        5 * u_dnn_isz))
+                           hidden_size=3 * (5 * u_dnn_isz, ))
 
     def forward(self, t, x, u):
         hidden_states = self.x_dnn(x)
@@ -62,12 +59,6 @@ class CausalFlowModel(nn.Module):
                                              u_lens - 1, :])
 
         return output
-
-    def predict(self, t, x0, u):
-        y_pred = self.__call__(t, x0, u).numpy()
-        y_pred[:] = self.center + y_pred @ self.weight
-
-        return y_pred
 
 
 class FFNet(nn.Module):

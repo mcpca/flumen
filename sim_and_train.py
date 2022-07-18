@@ -109,15 +109,16 @@ def sim_and_train(args,
     model = CausalFlowModel(state_dim=dynamics.n,
                             control_dim=dynamics.m,
                             control_rnn_size=args.control_rnn_size,
-                            num_layers=args.control_rnn_depth,
-                            norm_center=norm_center,
-                            norm_weight=norm_weight,
-                            generator=traj_generator)
+                            num_layers=args.control_rnn_depth)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    model_wrapped = TrainedModel(args, model)
+    model_wrapped = TrainedModel(args,
+                                 model,
+                                 traj_generator,
+                                 train_data_mean=norm_center,
+                                 train_data_std=norm_weight)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
