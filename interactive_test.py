@@ -12,6 +12,14 @@ def main():
 
     print(model)
 
+    fig, ax = plt.subplots(2, 1, sharex=True)
+    ax[0].semilogy(model.train_loss)
+    ax[0].set_ylabel('Train loss')
+    ax[1].semilogy(model.val_loss)
+    ax[1].set_ylabel('Validation loss')
+
+    plt.show()
+
     model.model.eval()
 
     trajectory_generator: TrajectoryGenerator = model.generator
