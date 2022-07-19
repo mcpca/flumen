@@ -195,6 +195,15 @@ class TrainedModel:
         else:
             self.data_path = None
 
+        self.n_epochs = 0
+        self.train_loss = []
+        self.val_loss = []
+
+    def register_losses(self, train, val):
+        self.n_epochs += 1
+        self.train_loss.append(train)
+        self.val_loss.append(val)
+
     def save(self):
         if self.save_path:
             self.save_timestamp = time.time()
