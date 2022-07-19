@@ -151,8 +151,7 @@ def timestamp_str(timestamp):
 
 
 def save_path(dir, timestamp, train_id):
-    file_name = dir + '_' + timestamp_str(timestamp) + '_' + str(
-        train_id.hex) + '.pth'
+    file_name = dir + '_' + timestamp_str(timestamp) + '_' + str(train_id.hex)
 
     path = os.path.join(os.path.dirname(__file__), 'outputs', dir)
 
@@ -161,14 +160,14 @@ def save_path(dir, timestamp, train_id):
 
 class TrainedModel:
 
-    def __init__(self, args, model, generator, train_data_mean,
-                 train_data_std):
+    def __init__(self, args, generator, train_data_mean, train_data_std):
+        self.model = None
+
         self.train_id = uuid.uuid4()
 
         self.cmd = ' '.join((quote(arg) for arg in sys.argv))
         self.args = args
 
-        self.model = model
         self.generator = generator
         self.td_mean = train_data_mean
         self.td_std = train_data_std
@@ -199,15 +198,34 @@ class TrainedModel:
         self.train_loss = []
         self.val_loss = []
 
-    def register_losses(self, train, val):
+        self.train_loss_best = None
+        self.val_loss_best = None
+
+        self.train_time = 0
+
+    def register_progress(self, train, val, best):
         self.n_epochs += 1
         self.train_loss.append(train)
         self.val_loss.append(val)
 
-    def save(self):
+        if best:
+            self.train_loss_best = train
+            self.val_loss_best = val
+
+    def save_model(self, model):
         if self.save_path:
             self.save_timestamp = time.time()
-            torch.save(self, os.path.join(self.save_path, self.file_name))
+            torch.save(
+                model.state_dict(),
+                os.path.join(self.save_path, self.file_name + '_params.pth'))
+
+    def save(self, train_time):
+        self.train_time = train_time
+
+        if self.save_path:
+            self.save_timestamp = time.time()
+            torch.save(self,
+                       os.path.join(self.save_path, self.file_name + '.pth'))
 
     def predict(self, t, x0, u):
         y_pred = self.model(t, x0, u).numpy()
@@ -225,9 +243,11 @@ class TrainedModel:
 
     def __str__(self):
         return cleandoc(f'''\
-            --- Trained model {self.file_name}
-                Timestamp: {timestamp_str(self.save_timestamp)}
-                Git hash: {self.git_head if self.git_head else 'N/A'}
-                Command line: {self.cmd}
-                Data: {self.data_path if self.data_path else 'N/A'}
+            --- Trained model   {self.file_name}
+                Timestamp:      {timestamp_str(self.save_timestamp)}
+                Git hash:       {self.git_head if self.git_head else 'N/A'}
+                Command line:   {self.cmd}
+                Data:           {self.data_path if self.data_path else 'N/A'}
+                Train time:     {self.train_time:.2f}
+                Loss:           t{self.train_loss_best:>3e} // v{self.val_loss_best:>3e}
         ''')

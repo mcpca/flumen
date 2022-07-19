@@ -4,11 +4,9 @@ from torch import nn
 
 class CausalFlowModel(nn.Module):
 
-    def __init__(self,
-                 state_dim,
-                 control_dim,
-                 control_rnn_size,
-                 num_layers=1):
+    def __init__(self, state_dim, control_dim, control_rnn_size,
+                 control_rnn_depth, encoder_size, encoder_depth, decoder_size,
+                 decoder_depth):
         super(CausalFlowModel, self).__init__()
 
         self.state_dim = state_dim
@@ -19,19 +17,21 @@ class CausalFlowModel(nn.Module):
             input_size=1 + control_dim,
             hidden_size=control_rnn_size,
             batch_first=True,
-            num_layers=num_layers,
+            num_layers=control_rnn_depth,
             dropout=0,
         )
 
-        x_dnn_osz = self.u_rnn.num_layers * 2 * control_rnn_size
+        x_dnn_osz = control_rnn_depth * 2 * control_rnn_size
         self.x_dnn = FFNet(in_size=state_dim,
                            out_size=x_dnn_osz,
-                           hidden_size=3 * (5 * x_dnn_osz, ))
+                           hidden_size=encoder_depth *
+                           (encoder_size * x_dnn_osz, ))
 
         u_dnn_isz = control_rnn_size
         self.u_dnn = FFNet(in_size=u_dnn_isz,
                            out_size=state_dim,
-                           hidden_size=3 * (5 * u_dnn_isz, ))
+                           hidden_size=decoder_depth *
+                           (decoder_size * u_dnn_isz, ))
 
     def forward(self, t, x, u):
         hidden_states = self.x_dnn(x)
