@@ -9,7 +9,7 @@ from flow_model import CausalFlowModel
 from train import EarlyStopping, train, validate
 from dynamics import Dynamics
 
-from utils import TrainedModel
+from meta import Meta, instantiate_model
 
 import time
 
@@ -45,7 +45,7 @@ def preprocess(traj_data, batch_size, split):
     return train_dl, val_dl, norm_center, norm_weight
 
 
-def training_loop(model, loss_fn, optimizer, sched, early_stop, train_dl,
+def training_loop(meta, model, loss_fn, optimizer, sched, early_stop, train_dl,
                   val_dl, device, max_epochs):
     print('Epoch :: Loss (Train) :: Loss (Val) :: Best (Val)')
     print('=================================================')
@@ -55,14 +55,14 @@ def training_loop(model, loss_fn, optimizer, sched, early_stop, train_dl,
     for epoch in range(max_epochs):
         loss = 0.
 
-        model.model.train()
+        model.train()
         for example in train_dl:
-            loss += train(example, loss_fn, model.model, optimizer, device)
+            loss += train(example, loss_fn, model, optimizer, device)
 
         loss /= len(train_dl)
 
-        model.model.eval()
-        val_loss = validate(val_dl, loss_fn, model.model, device)
+        model.eval()
+        val_loss = validate(val_dl, loss_fn, model, device)
         sched.step(val_loss)
         early_stop.step(val_loss)
 
@@ -71,14 +71,17 @@ def training_loop(model, loss_fn, optimizer, sched, early_stop, train_dl,
         )
 
         if early_stop.best_model:
-            model.save()
+            meta.save_model(model)
+
+        meta.register_progress(loss, val_loss, early_stop.best_model)
 
         if early_stop.early_stop:
             break
 
     train_time = time.time() - start
+    meta.save(train_time)
 
-    return loss, val_loss, train_time
+    return train_time
 
 
 def sim_and_train(args,
@@ -106,19 +109,15 @@ def sim_and_train(args,
     train_dl, val_dl, norm_center, norm_weight = preprocess(
         traj_data, batch_size=args.batch_size, split=args.train_val_split)
 
-    model = CausalFlowModel(state_dim=dynamics.n,
-                            control_dim=dynamics.m,
-                            control_rnn_size=args.control_rnn_size,
-                            num_layers=args.control_rnn_depth)
+    model: CausalFlowModel = instantiate_model(args, dynamics)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    model_wrapped = TrainedModel(args,
-                                 model,
-                                 traj_generator,
-                                 train_data_mean=norm_center,
-                                 train_data_std=norm_weight)
+    meta = Meta(args,
+                traj_generator,
+                train_data_mean=norm_center,
+                train_data_std=norm_weight)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
@@ -129,14 +128,15 @@ def sim_and_train(args,
     early_stop = EarlyStopping(es_patience=args.es_patience,
                                es_delta=args.es_delta)
 
-    loss, val_loss, train_time = training_loop(model_wrapped,
-                                               mse_loss,
-                                               optimizer,
-                                               sched,
-                                               early_stop,
-                                               train_dl,
-                                               val_dl,
-                                               device,
-                                               max_epochs=args.n_epochs)
+    train_time = training_loop(meta,
+                               model,
+                               mse_loss,
+                               optimizer,
+                               sched,
+                               early_stop,
+                               train_dl,
+                               val_dl,
+                               device,
+                               max_epochs=args.n_epochs)
 
     print(f"Training took {train_time:.2f} seconds.")
