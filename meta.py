@@ -1,8 +1,7 @@
 import torch
 
-import sys, os
+import sys, os, subprocess
 from uuid import uuid4
-from subprocess import check_output
 from time import time
 from datetime import datetime
 from inspect import cleandoc
@@ -58,8 +57,10 @@ class Meta:
         self.save_timestamp = None
 
         try:
-            self.git_head = check_output(['git', 'rev-parse',
-                                          'HEAD']).decode('ascii').strip()
+            self.git_head = subprocess.check_output(
+                ['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+            self.git_status = 'clean' if (subprocess.call(
+                ['git', 'status', '--quiet']) == 0) else 'dirty'
         except:
             self.git_head = None
 
@@ -154,7 +155,7 @@ class Meta:
         return cleandoc(f'''\
             --- Trained model   {self.file_name}
                 Timestamp:      {timestamp_str(self.save_timestamp)}
-                Git hash:       {self.git_head if self.git_head else 'N/A'}
+                Git hash:       {self.git_head + ' (' + self.git_status + ')' if self.git_head else 'N/A'}
                 Command line:   {self.cmd}
                 Data:           {self.data_path if self.data_path else 'N/A'}
                 Train time:     {self.train_time:.2f}
