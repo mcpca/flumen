@@ -4,10 +4,13 @@ from trajectory import TrajectoryGenerator, pack_model_inputs
 import matplotlib.pyplot as plt
 
 import sys
+from os.path import dirname
 
 
 def main():
     meta: Meta = torch.load(sys.argv[1], map_location=torch.device('cpu'))
+    meta.set_root(dirname(__file__))
+
     print(meta)
 
     model = meta.load_model()

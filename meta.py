@@ -16,10 +16,11 @@ def timestamp_str(timestamp):
         '%Y%m%d_%H%M%S') if timestamp else "N/A"
 
 
-def save_path(dir, timestamp, train_id):
+def save_path(root, dir, timestamp, train_id):
     file_name = dir + '_' + timestamp_str(timestamp) + '_' + str(train_id.hex)
 
-    path = os.path.join(os.path.dirname(__file__), 'outputs', dir)
+    root = root if root else os.path.dirname(__file__)
+    path = os.path.join(root, 'outputs', dir)
 
     return path, file_name
 
@@ -37,7 +38,12 @@ def instantiate_model(args, dynamics):
 
 class Meta:
 
-    def __init__(self, args, generator, train_data_mean, train_data_std):
+    def __init__(self,
+                 args,
+                 generator,
+                 train_data_mean,
+                 train_data_std,
+                 root=None):
         self.model = None
 
         self.train_id = uuid4()
@@ -57,8 +63,13 @@ class Meta:
         except:
             self.git_head = None
 
+        self.save_root = root
+
         if args.save_model:
-            self.save_path, self.file_name = save_path(args.save_model, time(),
+            self.creation_timestamp = time()
+            self.save_path, self.file_name = save_path(self.save_root,
+                                                       args.save_model,
+                                                       self.creation_timestamp,
                                                        self.train_id)
             os.makedirs(self.save_path, exist_ok=True)
         else:
@@ -78,6 +89,16 @@ class Meta:
         self.val_loss_best = None
 
         self.train_time = 0
+
+    def set_root(self, root):
+        self.save_root = root
+
+        if self.args.save_model:
+            self.save_path, self.file_name = save_path(self.save_root,
+                                                       self.args.save_model,
+                                                       self.creation_timestamp,
+                                                       self.train_id)
+            os.makedirs(self.save_path, exist_ok=True)
 
     def register_progress(self, train, val, best):
         self.n_epochs += 1
