@@ -7,6 +7,8 @@ from datetime import datetime
 from inspect import cleandoc
 from shlex import quote
 
+from scipy.linalg import inv
+
 from flow_model import CausalFlowModel
 
 
@@ -138,6 +140,7 @@ class Meta:
                        os.path.join(self.save_path, self.file_name + '.pth'))
 
     def predict(self, model, t, x0, u):
+        x0[:] = (x0 - self.td_mean) @ inv(self.td_std)
         y_pred = model(t, x0, u).numpy()
         y_pred[:] = self.td_mean + y_pred @ self.td_std
 

@@ -164,8 +164,6 @@ def pack_model_inputs(x0, t, u, delta, mean, std):
     rnn_inputs = torch.empty((t.shape[0], u.size, 2))
     lengths = torch.empty((t.shape[0], ), dtype=torch.long)
 
-    x0[:] = (x0 - mean) @ inv(std)
-
     for idx, (t_, u_) in enumerate(zip(t, rnn_inputs)):
         control_seq = torch.from_numpy(u)
         deltas = torch.ones_like(control_seq)
