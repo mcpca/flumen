@@ -25,7 +25,7 @@ def validate(data, loss_fn, model, device):
             u = u.to(device)
 
             y_pred = model(t, x0, u)
-            vl += loss_fn(y, y_pred)
+            vl += loss_fn(y, y_pred).item()
 
     return vl / len(data)
 

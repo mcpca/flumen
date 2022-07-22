@@ -4,8 +4,6 @@ import os, csv, re
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-import matplotlib.pyplot as plt
-
 from meta import Meta
 
 
@@ -29,15 +27,13 @@ def main():
     # test_dl = DataLoader(test_data, batch_size=1024, shuffle=True)
 
     stats = (TrainTime(), TrainError(), ValError())
-    stat_vals = {}
-    for stat in stats:
-        stat_vals[str(stat)] = []
-
 
     file_prefix = os.path.split(args.dir)[-1]
 
     file_matcher = re.compile(file_prefix +
                               '_[0-9]{8}_[0-9]{6}_[0-9a-f]{32}.pth')
+
+    rows = []
 
     for fname in os.listdir(args.dir):
         if not file_matcher.match(fname):
@@ -48,13 +44,20 @@ def main():
         meta.args.save_model = file_prefix  # DEBUG -- remove me later
         meta.set_root(os.path.dirname(__file__))
 
-        for stat in stats:
-            stat_vals[str(stat)].append(stat(meta))
+        rows.append({'id': meta.train_id.hex})
 
-    labels, data = stat_vals.keys(), stat_vals.values()
-    plt.boxplot(data)
-    plt.xticks(range(1, len(labels) + 1), labels)
-    plt.show()
+        for stat in stats:
+            rows[-1][str(stat)] = stat(meta)
+
+    ofname = os.path.join(args.dir, file_prefix + '_stats.csv')
+
+    with open(ofname, 'w', newline='') as ofile:
+        writer = csv.DictWriter(ofile,
+                                fieldnames=['id'] +
+                                [str(stat) for stat in stats])
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
 
 
 class TestError:
