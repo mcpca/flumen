@@ -4,6 +4,9 @@ import os, csv, re
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+import numpy as np
+from scipy.stats import sem
+
 from meta import Meta
 
 
@@ -14,6 +17,8 @@ def parse_args():
                     type=str,
                     help="Directory containing the models to be tested")
     ap.add_argument('test_data', type=str, help="Test dataset.")
+
+    ap.add_argument('--no_write', help="Don't write a CSV file.")
 
     return ap.parse_args()
 
@@ -26,7 +31,7 @@ def main():
     # test_data: Dataset = torch.load(args.test_data)
     # test_dl = DataLoader(test_data, batch_size=1024, shuffle=True)
 
-    stats = (TrainTime(), TrainError(), ValError())
+    metrics = (TrainTime(), TrainError(), ValError())
 
     file_prefix = os.path.split(args.dir)[-1]
 
@@ -46,15 +51,26 @@ def main():
 
         rows.append({'id': meta.train_id.hex})
 
-        for stat in stats:
-            rows[-1][str(stat)] = stat(meta)
+        for metric in metrics:
+            rows[-1][str(metric)] = metric(meta)
+
+    for metric in metrics:
+        metric_name = str(metric)
+        values = np.array([row[metric_name] for row in rows])
+
+        print(
+            f"{metric_name:16} mean={np.mean(values):.2e}, sem={sem(values):.2e}"
+        )
+
+    if args.no_write:
+        return
 
     ofname = os.path.join(args.dir, file_prefix + '_stats.csv')
 
     with open(ofname, 'w', newline='') as ofile:
         writer = csv.DictWriter(ofile,
                                 fieldnames=['id'] +
-                                [str(stat) for stat in stats])
+                                [str(stat) for stat in metrics])
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
