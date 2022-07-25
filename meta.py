@@ -109,7 +109,6 @@ class Meta:
         self.val_loss.append(val)
 
         if best:
-            self.train_loss_best = train
             self.val_loss_best = val
 
     def save_model(self, model):

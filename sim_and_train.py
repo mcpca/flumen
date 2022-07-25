@@ -79,6 +79,13 @@ def training_loop(meta, model, loss_fn, optimizer, sched, early_stop, train_dl,
             break
 
     train_time = time.time() - start
+
+    # Compute train set loss for the optimal model.
+    model = meta.load_model()
+    model.to(device)
+    train_loss = validate(train_dl, loss_fn, model, device)
+    meta.train_loss_best = train_loss
+
     meta.save(train_time)
 
     return train_time
