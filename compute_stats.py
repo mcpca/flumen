@@ -6,7 +6,9 @@ from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
 from scipy.stats import sem
+from scipy.linalg import inv
 
+from flow_model import CausalFlowModel
 from meta import Meta
 
 
@@ -16,7 +18,8 @@ def parse_args():
     ap.add_argument('dir',
                     type=str,
                     help="Directory containing the models to be tested")
-    ap.add_argument('test_data', type=str, help="Test dataset.")
+
+    ap.add_argument('--test_set', type=str, help="Test dataset.", default=None)
 
     ap.add_argument('--no_write', help="Don't write a CSV file.")
 
@@ -28,10 +31,12 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # test_data: Dataset = torch.load(args.test_data)
-    # test_dl = DataLoader(test_data, batch_size=1024, shuffle=True)
+    metrics = [TrainTime(), TrainError(), ValError()]
 
-    metrics = (TrainTime(), TrainError(), ValError())
+    if args.test_set:
+        test_data: Dataset = torch.load(args.test_set)
+        test_dl = DataLoader(test_data, batch_size=1024, shuffle=False)
+        metrics.append(TestError(test_dl))
 
     file_prefix = os.path.split(args.dir)[-1]
 
@@ -46,7 +51,6 @@ def main():
 
         load_path = os.path.join(args.dir, fname)
         meta: Meta = torch.load(load_path, map_location=torch.device('cpu'))
-        meta.args.save_model = file_prefix  # DEBUG -- remove me later
         meta.set_root(os.path.dirname(__file__))
 
         rows.append({'id': meta.train_id.hex})
@@ -79,14 +83,11 @@ def main():
 class TestError:
 
     def __init__(self, test_dl: DataLoader):
-        self.loss = torch.nn.MSELoss
+        self.loss = torch.nn.MSELoss()
         self.data = test_dl
 
     def __call__(self, meta: Meta):
-        model = meta.load_model()
-
-        def eval_fn(t, x, u):
-            return meta.predict(model, t, x, u)
+        model: CausalFlowModel = meta.load_model()
 
         rv = 0.
 
@@ -100,10 +101,14 @@ class TestError:
                 u = u[sort_idxs]
                 lengths = lengths[sort_idxs]
 
+                weight = inv(meta.td_std)
+                x0[:] = (x0 - meta.td_mean) @ weight
+                y[:] = (y - meta.td_mean) @ weight
+
                 u = torch.nn.utils.rnn.pack_padded_sequence(
                     u, lengths, batch_first=True, enforce_sorted=True)
 
-                y_pred = eval_fn(t, x0, u)
+                y_pred = model(t, x0, u)
                 rv += self.loss(y, y_pred)
 
         return rv / len(self.data)
