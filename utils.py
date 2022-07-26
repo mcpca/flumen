@@ -92,6 +92,21 @@ def parse_args():
                     help="Early stopping -- minimum loss change",
                     default=0.)
 
+    ap.add_argument('--sched_patience',
+                    type=positive_int,
+                    help="LR Scheduler -- Patience epochs",
+                    default=10)
+
+    ap.add_argument('--sched_cooldown',
+                    type=positive_float,
+                    help="LR scheduler -- Cooldown epochs",
+                    default=2)
+
+    ap.add_argument('--sched_factor',
+                    type=positive_int,
+                    help="LR Scheduler -- Reduction factor",
+                    default=5)
+
     ap.add_argument('--save_model',
                     type=str,
                     help="Subdirectory where the model will be saved",
