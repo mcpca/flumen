@@ -161,7 +161,7 @@ class TrajectoryDataset(Dataset):
                 self.rnn_input[index], self.seq_lens[index])
 
 
-def pack_model_inputs(x0, t, u, delta, mean, std):
+def pack_model_inputs(x0, t, u, delta):
     t = torch.Tensor(t.reshape((-1, 1))).flip(0)
     x0 = torch.Tensor(x0.reshape((1, -1))).repeat(t.shape[0], 1)
     rnn_inputs = torch.empty((t.shape[0], u.size, 2))
