@@ -31,7 +31,6 @@ def validate(data, loss_fn, model, device):
 
 
 def train(example, loss_fn, model, optimizer, device):
-    model.train()
     x0, t, y, u, lengths = example
 
     sort_idxs = torch.argsort(lengths, descending=True)
