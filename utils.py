@@ -102,6 +102,12 @@ def parse_args():
                     help="Path to write .pth trajectory dataset",
                     default=None)
 
+    ap.add_argument('--generate_test_set',
+                    type=str,
+                    help="Path to write .pth test dataset. " \
+                    "No model will be trained if this option is used",
+                    default=None)
+
     ap.add_argument('--load_data',
                     type=str,
                     help="Path to load .pth trajectory dataset",

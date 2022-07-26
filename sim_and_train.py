@@ -101,6 +101,9 @@ def sim_and_train(args,
         dynamics = traj_generator._dyn
 
     else:
+        examples_per_traj = (args.n_samples if args.generate_test_set else
+                             args.examples_per_traj)
+
         traj_data, traj_generator = simulate(
             dynamics,
             control_generator,
@@ -108,10 +111,14 @@ def sim_and_train(args,
             n_trajectories=args.n_trajectories,
             n_samples=args.n_samples,
             time_horizon=args.time_horizon,
-            examples_per_traj=args.examples_per_traj)
+            examples_per_traj=examples_per_traj)
 
     if args.save_data:
         torch.save((traj_data, traj_generator), f'outputs/{args.save_data}')
+
+    if args.generate_test_set:
+        torch.save(traj_data, f'outputs/{args.generate_test_set}')
+        return
 
     train_dl, val_dl, norm_center, norm_weight = preprocess(
         traj_data, batch_size=args.batch_size, split=args.train_val_split)

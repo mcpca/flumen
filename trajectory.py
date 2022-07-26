@@ -93,9 +93,12 @@ class TrajectoryDataset(Dataset):
                             examples_per_traj] = torch.from_numpy(x0)
 
             # generate random indexes from which samples will be taken
-            end_state_idxs = rng.integers(n_samples,
-                                          size=(examples_per_traj, ),
-                                          dtype=np.uint64)
+            if examples_per_traj < n_samples:
+                end_state_idxs = rng.integers(n_samples,
+                                              size=(examples_per_traj, ),
+                                              dtype=np.uint64)
+            else:
+                end_state_idxs = np.arange(n_samples, dtype=np.uint64)
 
             for k_ei, end_idx in enumerate(end_state_idxs):
                 self.state[k_tr * examples_per_traj + k_ei] = torch.from_numpy(
