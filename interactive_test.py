@@ -15,12 +15,11 @@ def main():
 
     model = meta.load_model()
 
-    fig, ax = plt.subplots(2, 1, sharex=True)
-    ax[0].semilogy(meta.train_loss)
-    ax[0].set_ylabel('Train loss')
-    ax[1].semilogy(meta.val_loss)
-    ax[1].set_ylabel('Validation loss')
-
+    fig, ax = plt.subplots()
+    ax.semilogy(meta.train_loss, label='Train loss')
+    ax.semilogy(meta.val_loss, label='Validation loss')
+    ax.semilogy(meta.test_loss, label='Test loss')
+    ax.legend()
     plt.show()
 
     model.eval()

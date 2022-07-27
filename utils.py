@@ -32,10 +32,16 @@ def parse_args():
                     default=25)
 
     ap.add_argument(
-        '--train_val_split',
+        '--data_split',
+        nargs=2,
         type=percentage,
-        help="Percentage of the generated data that is used for training",
-        default=70)
+        help="Percentage of data used for validation and test sets",
+        default=[20, 20])
+
+    ap.add_argument('--data_split_seed',
+                    type=positive_int,
+                    help="Seed for the random data split.",
+                    default=None)
 
     ap.add_argument('--batch_size',
                     type=positive_int,
@@ -98,7 +104,7 @@ def parse_args():
                     default=10)
 
     ap.add_argument('--sched_cooldown',
-                    type=positive_float,
+                    type=positive_int,
                     help="LR scheduler -- Cooldown epochs",
                     default=2)
 

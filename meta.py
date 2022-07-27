@@ -87,9 +87,11 @@ class Meta:
         self.n_epochs = 0
         self.train_loss = []
         self.val_loss = []
+        self.test_loss = []
 
         self.train_loss_best = None
         self.val_loss_best = None
+        self.test_loss_best = None
 
         self.train_time = 0
 
@@ -103,13 +105,16 @@ class Meta:
                                                        self.train_id)
             os.makedirs(self.save_path, exist_ok=True)
 
-    def register_progress(self, train, val, best):
+    def register_progress(self, train, val, test, best):
         self.n_epochs += 1
         self.train_loss.append(train)
         self.val_loss.append(val)
+        self.test_loss.append(test)
 
         if best:
+            self.train_loss_best = train
             self.val_loss_best = val
+            self.test_loss_best = test
 
     def save_model(self, model):
         if self.save_path:
@@ -161,5 +166,5 @@ class Meta:
                 Command line:   {self.cmd}
                 Data:           {self.data_path if self.data_path else 'N/A'}
                 Train time:     {self.train_time:.2f}
-                Loss:           t{self.train_loss_best:>3e} // v{self.val_loss_best:>3e}
+                Loss:           tr={self.train_loss_best:.3e} // vl={self.val_loss_best:.3e} // ts={self.test_loss_best:.3e}
         ''')

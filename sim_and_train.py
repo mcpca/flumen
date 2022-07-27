@@ -32,60 +32,65 @@ def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
 
 
 def preprocess(traj_data, batch_size, split):
+    if split[0] + split[1] >= 100:
+        raise Exception("Invalid data split.")
+
     norm_center, norm_weight = traj_data.whiten_targets()
 
-    train_len = int((float(split) / 100.) * len(traj_data))
-    train_data, val_data = random_split(traj_data,
-                                        lengths=(train_len,
-                                                 len(traj_data) - train_len))
+    val_len = int((float(split[0]) / 100.) * len(traj_data))
+    test_len = int((float(split[1]) / 100.) * len(traj_data))
+
+    train_data, val_data, test_data = random_split(
+        traj_data,
+        lengths=(len(traj_data) - (val_len + test_len), val_len, test_len))
 
     train_dl = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=False)
+    test_dl = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
-    return train_dl, val_dl, norm_center, norm_weight
+    return train_dl, val_dl, test_dl, norm_center, norm_weight
 
 
 def training_loop(meta, model, loss_fn, optimizer, sched, early_stop, train_dl,
-                  val_dl, device, max_epochs):
-    print('Epoch :: Loss (Train) :: Loss (Val) :: Best (Val)')
-    print('=================================================')
+                  val_dl, test_dl, device, max_epochs):
+    header_msg = f"{'Epoch':>5} :: {'Loss (Train)':>16} :: " \
+            f"{'Loss (Val)':>16} :: {'Loss (Test)':>16} :: {'Best (Val)':>16}"
+
+    print(header_msg)
+    print('=' * len(header_msg))
 
     start = time.time()
 
     for epoch in range(max_epochs):
-        loss = 0.
-
         model.train()
         for example in train_dl:
-            loss += train(example, loss_fn, model, optimizer, device)
-
-        loss /= len(train_dl)
+            train(example, loss_fn, model, optimizer, device)
 
         model.eval()
-        val_loss = validate(val_dl, loss_fn, model, device)
+
+        with torch.no_grad():
+            train_loss = validate(train_dl, loss_fn, model, device)
+            val_loss = validate(val_dl, loss_fn, model, device)
+            test_loss = validate(test_dl, loss_fn, model, device)
+
         sched.step(val_loss)
         early_stop.step(val_loss)
 
         print(
-            f"{epoch + 1:>5d} :: {loss:>7e} :: {val_loss:>7e} :: {early_stop.best_val_loss:>7e}"
+            f"{epoch + 1:>5d} :: {train_loss:>16e} :: {val_loss:>16e} :: " \
+            f"{test_loss:>16e} :: {early_stop.best_val_loss:>16e}"
         )
 
         if early_stop.best_model:
             meta.save_model(model)
 
-        meta.register_progress(loss, val_loss, early_stop.best_model)
+        meta.register_progress(train_loss, val_loss, test_loss,
+                               early_stop.best_model)
 
         if early_stop.early_stop:
             break
 
     train_time = time.time() - start
-
-    # Compute train set loss for the optimal model.
-    model = meta.load_model()
-    model.to(device)
-    train_loss = validate(train_dl, loss_fn, model, device)
-    meta.train_loss_best = train_loss
-
     meta.save(train_time)
 
     return train_time
@@ -120,8 +125,8 @@ def sim_and_train(args,
         torch.save(traj_data, f'outputs/{args.generate_test_set}')
         return
 
-    train_dl, val_dl, norm_center, norm_weight = preprocess(
-        traj_data, batch_size=args.batch_size, split=args.train_val_split)
+    train_dl, val_dl, test_dl, norm_center, norm_weight = preprocess(
+        traj_data, batch_size=args.batch_size, split=args.data_split)
 
     model: CausalFlowModel = instantiate_model(args, dynamics)
 
@@ -153,6 +158,7 @@ def sim_and_train(args,
                                early_stop,
                                train_dl,
                                val_dl,
+                               test_dl,
                                device,
                                max_epochs=args.n_epochs)
 
