@@ -105,15 +105,14 @@ class TestOnData:
                 u = u[sort_idxs]
                 lengths = lengths[sort_idxs]
 
-                weight = inv(meta.td_std)
-                x0[:] = (x0 - meta.td_mean) @ weight
-                y[:] = (y - meta.td_mean) @ weight
+                x0[:] = (x0 - meta.td_mean) @ meta.td_std_inv
+                y[:] = (y - meta.td_mean) @ meta.td_std_inv
 
                 u = torch.nn.utils.rnn.pack_padded_sequence(
                     u, lengths, batch_first=True, enforce_sorted=True)
 
                 y_pred = model(t, x0, u)
-                rv += self.loss(y, y_pred)
+                rv += self.loss(y, y_pred).item()
 
         return rv / len(self.data)
 

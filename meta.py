@@ -55,6 +55,7 @@ class Meta:
         self.generator = generator
         self.td_mean = train_data_mean
         self.td_std = train_data_std
+        self.td_std_inv = inv(train_data_std)
 
         self.save_timestamp = None
 
@@ -144,7 +145,7 @@ class Meta:
                        os.path.join(self.save_path, self.file_name + '.pth'))
 
     def predict(self, model, t, x0, u):
-        x0[:] = (x0 - self.td_mean) @ inv(self.td_std)
+        x0[:] = (x0 - self.td_mean) @ self.td_std_inv
         y_pred = model(t, x0, u).numpy()
         y_pred[:] = self.td_mean + y_pred @ self.td_std
 
