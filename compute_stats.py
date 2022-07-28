@@ -19,7 +19,10 @@ def parse_args():
                     type=str,
                     help="Directory containing the models to be tested")
 
-    ap.add_argument('--test_set', type=str, help="Test dataset.", default=None)
+    ap.add_argument('--test_set',
+                    nargs='+',
+                    help="Additional test datasets.",
+                    default=[])
 
     ap.add_argument('--no_write', help="Don't write a CSV file.")
 
@@ -31,12 +34,10 @@ def parse_args():
 def main():
     args = parse_args()
 
-    metrics = [TrainTime(), TrainError(), ValError()]
+    metrics = [TrainTime(), TrainError(), ValError(), TestError()]
 
-    if args.test_set:
-        test_data: Dataset = torch.load(args.test_set)
-        test_dl = DataLoader(test_data, batch_size=1024, shuffle=False)
-        metrics.append(TestError(test_dl))
+    for path in args.test_set:
+        metrics.append(TestOnData(path))
 
     file_prefix = os.path.split(args.dir)[-1]
 
@@ -80,11 +81,14 @@ def main():
             writer.writerow(row)
 
 
-class TestError:
+class TestOnData:
+    def __init__(self, path):
+        self.name = path
 
-    def __init__(self, test_dl: DataLoader):
+        test_data: Dataset = torch.load(path)
+        self.data = DataLoader(test_data, batch_size=1024, shuffle=False)
+
         self.loss = torch.nn.MSELoss()
-        self.data = test_dl
 
     def __call__(self, meta: Meta):
         model: CausalFlowModel = meta.load_model()
@@ -114,11 +118,21 @@ class TestError:
         return rv / len(self.data)
 
     def __str__(self):
+        return f'test_mse_{self.name}'
+
+
+class TestError:
+    def __init__(self):
+        pass
+
+    def __call__(self, meta: Meta):
+        return meta.test_loss_best
+
+    def __str__(self):
         return 'test_mse'
 
 
 class ValError:
-
     def __init__(self):
         pass
 
@@ -130,7 +144,6 @@ class ValError:
 
 
 class TrainError:
-
     def __init__(self):
         pass
 
@@ -142,7 +155,6 @@ class TrainError:
 
 
 class TrainTime:
-
     def __init__(self):
         pass
 
