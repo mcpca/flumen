@@ -63,7 +63,7 @@ class Meta:
             self.git_head = subprocess.check_output(
                 ['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
             self.git_status = 'clean' if (subprocess.call(
-                ['git', 'status', '--quiet']) == 0) else 'dirty'
+                ['git', 'diff-index', '--quiet', 'HEAD']) == 0) else 'dirty'
         except:
             self.git_head = None
 
