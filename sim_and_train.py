@@ -13,6 +13,9 @@ from meta import Meta, instantiate_model
 
 import time
 
+import numpy as np
+from scipy.linalg import sqrtm, inv
+
 
 def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
              control_delta, n_trajectories, n_samples, time_horizon,
@@ -29,11 +32,29 @@ def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
                              examples_per_traj=examples_per_traj)
 
 
+def whiten_targets(data: torch.utils.data.Subset, mean=None, std=None):
+    if mean is None:
+        mean = data.dataset.state[data.indices].mean(axis=0)
+
+    if std is None:
+        std = sqrtm(np.cov(data.dataset.state[data.indices].T))
+
+    istd = inv(std)
+
+    data.dataset.state[data.indices] = (
+        (data.dataset.state[data.indices] - mean) @ istd).type(
+            torch.get_default_dtype())
+
+    data.dataset.init_state[data.indices] = (
+        (data.dataset.init_state[data.indices] - mean) @ istd).type(
+            torch.get_default_dtype())
+
+    return mean, std
+
+
 def preprocess(traj_data, batch_size, split):
     if split[0] + split[1] >= 100:
         raise Exception("Invalid data split.")
-
-    norm_center, norm_weight = traj_data.whiten_targets()
 
     val_len = int((float(split[0]) / 100.) * len(traj_data))
     test_len = int((float(split[1]) / 100.) * len(traj_data))
@@ -41,6 +62,10 @@ def preprocess(traj_data, batch_size, split):
     train_data, val_data, test_data = random_split(
         traj_data,
         lengths=(len(traj_data) - (val_len + test_len), val_len, test_len))
+
+    norm_center, norm_weight = whiten_targets(train_data)
+    whiten_targets(val_data, norm_center, norm_weight)
+    whiten_targets(test_data, norm_center, norm_weight)
 
     train_dl = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=False)

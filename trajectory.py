@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.integrate import solve_ivp
-from scipy.linalg import sqrtm, inv
 from pyDOE import lhs
 import torch
 from torch.utils.data import Dataset
@@ -149,17 +148,6 @@ class TrajectoryDataset(Dataset):
         rnn_input = torch.hstack((u_seq, deltas))
 
         return rnn_input, u_sz
-
-    def whiten_targets(self):
-        mean = self.state.mean(axis=0)
-        std = sqrtm(np.cov(self.state.T))
-
-        istd = inv(std)
-
-        self.state[:] = (self.state - mean) @ istd
-        self.init_state[:] = (self.init_state - mean) @ istd
-
-        return mean, std
 
     def __len__(self):
         return self.len
