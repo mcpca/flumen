@@ -1,14 +1,15 @@
 from argparse import ArgumentParser
 import os, csv, re
+from copy import deepcopy
 
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
 import numpy as np
 from scipy.stats import sem
-from scipy.linalg import inv
 
 from flow_model import CausalFlowModel
+from trajectory import TrajectoryDataset
 from meta import Meta
 
 
@@ -82,21 +83,24 @@ def main():
 
 
 class TestOnData:
+
     def __init__(self, path):
         self.name = path
-
-        test_data: Dataset = torch.load(path)
-        self.data = DataLoader(test_data, batch_size=1024, shuffle=False)
-
+        self.data: TrajectoryDataset = torch.load(path)
         self.loss = torch.nn.MSELoss()
 
     def __call__(self, meta: Meta):
         model: CausalFlowModel = meta.load_model()
 
+        data = deepcopy(self.data)
+        data.init_state[:] = (data.init_state - meta.td_mean) @ meta.td_std_inv
+        data.state[:] = (data.state - meta.td_mean) @ meta.td_std_inv
+        loader = DataLoader(data, batch_size=1024, shuffle=False)
+
         rv = 0.
 
         with torch.no_grad():
-            for (x0, t, y, u, lengths) in self.data:
+            for x0, t, y, u, lengths in loader:
                 sort_idxs = torch.argsort(lengths, descending=True)
 
                 x0 = x0[sort_idxs]
@@ -104,9 +108,6 @@ class TestOnData:
                 y = y[sort_idxs]
                 u = u[sort_idxs]
                 lengths = lengths[sort_idxs]
-
-                x0[:] = (x0 - meta.td_mean) @ meta.td_std_inv
-                y[:] = (y - meta.td_mean) @ meta.td_std_inv
 
                 u = torch.nn.utils.rnn.pack_padded_sequence(
                     u, lengths, batch_first=True, enforce_sorted=True)
@@ -121,6 +122,7 @@ class TestOnData:
 
 
 class TestError:
+
     def __init__(self):
         pass
 
@@ -132,6 +134,7 @@ class TestError:
 
 
 class ValError:
+
     def __init__(self):
         pass
 
@@ -143,6 +146,7 @@ class ValError:
 
 
 class TrainError:
+
     def __init__(self):
         pass
 
@@ -154,6 +158,7 @@ class TrainError:
 
 
 class TrainTime:
+
     def __init__(self):
         pass
 
