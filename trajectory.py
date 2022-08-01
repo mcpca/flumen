@@ -68,16 +68,21 @@ class TrajectoryDataset(Dataset):
 
     def __init__(self, generator: TrajectoryGenerator, n_trajectories,
                  n_samples, time_horizon, examples_per_traj):
+        self.generator = generator
 
-        init_time = generator._init_time
-        delta = generator._delta
+        self.n_trajectories = n_trajectories
+        self.n_samples = n_samples
+        self.examples_per_traj = examples_per_traj
+        self.time_horizon = time_horizon
+
+        self.state_dim, self.control_dim = generator._dyn.dims()
 
         n_examples = n_trajectories * examples_per_traj
 
         self.init_state = torch.empty(
-            (n_examples, generator._n)).type(torch.get_default_dtype())
+            (n_examples, self.state_dim)).type(torch.get_default_dtype())
         self.state = torch.empty(
-            (n_examples, generator._n)).type(torch.get_default_dtype())
+            (n_examples, self.state_dim)).type(torch.get_default_dtype())
         self.time = torch.empty(
             (n_examples, 1)).type(torch.get_default_dtype())
         rnn_input_data = []
@@ -104,10 +109,11 @@ class TrajectoryDataset(Dataset):
                 self.state[k_tr * examples_per_traj + k_ei] = torch.from_numpy(
                     y[end_idx])
                 self.time[k_tr * examples_per_traj +
-                          k_ei] = torch.from_numpy(t[end_idx] - init_time)
+                          k_ei] = torch.from_numpy(t[end_idx] -
+                                                   self.generator._init_time)
 
                 rnn_input, rnn_input_len = self.process_example(
-                    0, end_idx, t, u, init_time, delta)
+                    0, end_idx, t, u)
 
                 seq_len_data.append(rnn_input_len)
                 rnn_input_data.append(rnn_input)
@@ -117,8 +123,10 @@ class TrajectoryDataset(Dataset):
         self.seq_lens = torch.tensor(seq_len_data, dtype=torch.long)
         self.len = self.seq_lens.shape[0]
 
-    @staticmethod
-    def process_example(start_idx, end_idx, t, u, init_time, delta):
+    def process_example(self, start_idx, end_idx, t, u):
+        init_time = self.generator._init_time
+        delta = self.generator._delta
+
         u_start_idx = int(np.floor((t[start_idx] - init_time) / delta))
         u_end_idx = int(np.floor((t[end_idx] - init_time) / delta))
         u_sz = 1 + u_end_idx - u_start_idx

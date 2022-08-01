@@ -8,6 +8,9 @@ class Dynamics:
     def __call__(self, x, u):
         return self._dx(x, u)
 
+    def dims(self):
+        return (self.n, self.m)
+
 
 class LinearSys(Dynamics):
     def __init__(self, a, b):

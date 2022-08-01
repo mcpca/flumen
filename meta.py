@@ -26,9 +26,9 @@ def save_path(root, dir, timestamp, train_id):
     return path, file_name
 
 
-def instantiate_model(args, dynamics):
-    return CausalFlowModel(state_dim=dynamics.n,
-                           control_dim=dynamics.m,
+def instantiate_model(args, state_dim, control_dim):
+    return CausalFlowModel(state_dim=state_dim,
+                           control_dim=control_dim,
                            control_rnn_size=args.control_rnn_size,
                            control_rnn_depth=args.control_rnn_depth,
                            encoder_size=args.encoder_size,
@@ -123,15 +123,15 @@ class Meta:
                 model.state_dict(),
                 os.path.join(self.save_path, self.file_name + '_params.pth'))
 
-    def load_model(self):
+    def load_model(self, device='cpu'):
         if not self.save_path:
             raise Exception("No model on disk associated with this metadata.")
 
         params = torch.load(os.path.join(self.save_path,
                                          self.file_name + '_params.pth'),
-                            map_location=torch.device('cpu'))
+                            map_location=torch.device(device))
 
-        model = instantiate_model(self.args, self.generator._dyn)
+        model = instantiate_model(self.args, *self.generator._dyn.dims())
         model.load_state_dict(params)
 
         return model

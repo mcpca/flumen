@@ -22,13 +22,11 @@ def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
         control_delta=control_delta,
         control_generator=control_generator)
 
-    traj_data = TrajectoryDataset(trajectory_generator,
-                                  n_trajectories=n_trajectories,
-                                  n_samples=n_samples,
-                                  time_horizon=time_horizon,
-                                  examples_per_traj=examples_per_traj)
-
-    return traj_data, trajectory_generator
+    return TrajectoryDataset(trajectory_generator,
+                             n_trajectories=n_trajectories,
+                             n_samples=n_samples,
+                             time_horizon=time_horizon,
+                             examples_per_traj=examples_per_traj)
 
 
 def preprocess(traj_data, batch_size, split):
@@ -102,24 +100,22 @@ def sim_and_train(args,
                   load_data=False):
 
     if load_data:
-        traj_data, traj_generator = torch.load(args.load_data)
-        dynamics = traj_generator._dyn
+        traj_data = torch.load(args.load_data)
 
     else:
         examples_per_traj = (args.n_samples if args.generate_test_set else
                              args.examples_per_traj)
 
-        traj_data, traj_generator = simulate(
-            dynamics,
-            control_generator,
-            control_delta=args.control_delta,
-            n_trajectories=args.n_trajectories,
-            n_samples=args.n_samples,
-            time_horizon=args.time_horizon,
-            examples_per_traj=examples_per_traj)
+        traj_data = simulate(dynamics,
+                             control_generator,
+                             control_delta=args.control_delta,
+                             n_trajectories=args.n_trajectories,
+                             n_samples=args.n_samples,
+                             time_horizon=args.time_horizon,
+                             examples_per_traj=examples_per_traj)
 
-    if args.save_data:
-        torch.save((traj_data, traj_generator), f'outputs/{args.save_data}')
+    if args.save_data and not args.generate_test_set:
+        torch.save(traj_data, f'outputs/{args.save_data}')
 
     if args.generate_test_set:
         torch.save(traj_data, f'outputs/{args.generate_test_set}')
@@ -128,13 +124,14 @@ def sim_and_train(args,
     train_dl, val_dl, test_dl, norm_center, norm_weight = preprocess(
         traj_data, batch_size=args.batch_size, split=args.data_split)
 
-    model: CausalFlowModel = instantiate_model(args, dynamics)
+    model: CausalFlowModel = instantiate_model(args, traj_data.state_dim,
+                                               traj_data.control_dim)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     meta = Meta(args,
-                traj_generator,
+                traj_data.generator,
                 train_data_mean=norm_center,
                 train_data_std=norm_weight)
 
