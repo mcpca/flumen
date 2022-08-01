@@ -7,7 +7,7 @@ from sim_and_train import sim_and_train
 def main():
     args = parse_args()
 
-    dynamics = VanDerPol(1.0)
+    dynamics = VanDerPol(1.5)
     control_generator = GaussianSqWave(period=5)
 
     sim_and_train(args, dynamics, control_generator)
