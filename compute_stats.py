@@ -16,16 +16,20 @@ from meta import Meta
 def parse_args():
     ap = ArgumentParser()
 
-    ap.add_argument('dir',
-                    type=str,
-                    help="Directory containing the models to be tested")
+    ap.add_argument(
+        'dir',
+        nargs='+',
+        type=str,
+        help="One or more directories containing the models to be tested")
 
     ap.add_argument('--test_set',
                     nargs='+',
                     help="Additional test datasets.",
                     default=[])
 
-    ap.add_argument('--no_write', help="Don't write a CSV file.")
+    ap.add_argument('--no_write',
+                    action='store_true',
+                    help="Don't write a CSV file.")
 
     return ap.parse_args()
 
@@ -35,51 +39,64 @@ def parse_args():
 def main():
     args = parse_args()
 
-    metrics = [TrainTime(), TrainError(), ValError(), TestError()]
+    metrics = [
+        TrainTime(),
+        TrainError(),
+        ValError(),
+        TestError(),
+        GetParam('lr'),
+        GetParam('control_rnn_size'),
+        GetParam('encoder_size'),
+        GetParam('decoder_size')
+    ]
 
     for path in args.test_set:
         metrics.append(TestOnData(path))
 
-    file_prefix = os.path.split(args.dir)[-1]
-
-    file_matcher = re.compile(file_prefix +
-                              '_[0-9]{8}_[0-9]{6}_[0-9a-f]{32}.pth')
-
     rows = []
 
-    for fname in os.listdir(args.dir):
-        if not file_matcher.match(fname):
-            continue
+    for dir in args.dir:
+        file_prefix = os.path.split(dir)[-1]
+        file_matcher = re.compile(file_prefix +
+                                  '_[0-9]{8}_[0-9]{6}_[0-9a-f]{32}.pth')
 
-        load_path = os.path.join(args.dir, fname)
-        meta: Meta = torch.load(load_path, map_location=torch.device('cpu'))
-        meta.set_root(os.path.dirname(__file__))
+        for fname in os.listdir(dir):
+            if not file_matcher.match(fname):
+                continue
 
-        rows.append({'id': meta.train_id.hex})
+            load_path = os.path.join(dir, fname)
+            meta: Meta = torch.load(load_path,
+                                    map_location=torch.device('cpu'))
+            meta.set_root(os.path.dirname(__file__))
+
+            rows.append({'id': meta.train_id.hex})
+
+            for metric in metrics:
+                rows[-1][str(metric)] = metric(meta)
+
+        print(f"-- {dir}")
 
         for metric in metrics:
-            rows[-1][str(metric)] = metric(meta)
+            metric_name = str(metric)
+            values = np.array([row[metric_name] for row in rows])
 
-    for metric in metrics:
-        metric_name = str(metric)
-        values = np.array([row[metric_name] for row in rows])
-
-        print(
-            f"{metric_name:16} mean={np.mean(values):.2e}, sem={sem(values):.2e}"
-        )
+            print(
+                f"{metric_name:16} mean={np.mean(values):.2e}, sem={sem(values):.2e}"
+            )
 
     if args.no_write:
         return
 
-    ofname = os.path.join(args.dir, file_prefix + '_stats.csv')
+    for dir in args.dir:
+        ofname = os.path.join(dir, file_prefix + '_stats.csv')
 
-    with open(ofname, 'w', newline='') as ofile:
-        writer = csv.DictWriter(ofile,
-                                fieldnames=['id'] +
-                                [str(stat) for stat in metrics])
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(row)
+        with open(ofname, 'w', newline='') as ofile:
+            writer = csv.DictWriter(ofile,
+                                    fieldnames=['id'] +
+                                    [str(stat) for stat in metrics])
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(row)
 
 
 class TestOnData:
@@ -167,6 +184,18 @@ class TrainTime:
 
     def __str__(self):
         return 'train_time'
+
+
+class GetParam:
+
+    def __init__(self, param: str):
+        self.param = param
+
+    def __call__(self, meta: Meta):
+        return vars(meta.args)[self.param]
+
+    def __str__(self):
+        return self.param
 
 
 if __name__ == "__main__":
