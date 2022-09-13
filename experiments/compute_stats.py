@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader
 import numpy as np
 from scipy.stats import sem
 
-from flow_model import CausalFlowModel
-from trajectory import TrajectoryDataset
+from flow_model.model import CausalFlowModel
+from flow_model.data import TrajectoryDataset
 from meta import Meta
 
 

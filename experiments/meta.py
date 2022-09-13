@@ -9,7 +9,7 @@ from shlex import quote
 
 from scipy.linalg import inv
 
-from flow_model import CausalFlowModel
+from flow_model.model import CausalFlowModel
 
 
 def timestamp_str(timestamp):

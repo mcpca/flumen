@@ -1,8 +1,21 @@
 import numpy as np
-from trajectory import RandomWalkSequence
+
+from flow_model.data import RandomWalkSequence
+from dynamics import Dynamics
+
 from utils import parse_args, print_gpu_info
-from dynamics import LinearSys
 from sim_and_train import sim_and_train
+
+
+class LinearSys(Dynamics):
+    def __init__(self, a, b):
+        super().__init__(a.shape[0], b.shape[1])
+
+        self.a = a
+        self.b = b
+
+    def _dx(self, x, u):
+        return self.a @ x + self.b @ u
 
 
 def main():
