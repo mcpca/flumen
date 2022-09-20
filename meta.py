@@ -41,7 +41,7 @@ class Meta:
 
     def __init__(self,
                  args,
-                 generator,
+                 data,
                  train_data_mean,
                  train_data_std,
                  root=None):
@@ -52,7 +52,11 @@ class Meta:
         self.cmd = ' '.join((quote(arg) for arg in sys.argv))
         self.args = args
 
-        self.generator = generator
+        self.generator = data.generator
+        self.data_time_horizon = data.time_horizon
+        self.data_n_traj = data.n_trajectories
+        self.data_n_samples = data.n_samples
+
         self.td_mean = train_data_mean
         self.td_std = train_data_std
         self.td_std_inv = inv(train_data_std)
@@ -146,7 +150,8 @@ class Meta:
 
     def predict(self, model, t, x0, u):
         x0[:] = (x0 - self.td_mean) @ self.td_std_inv
-        y_pred = model(t, x0, u).numpy()
+        with torch.no_grad():
+            y_pred = model(t, x0, u).numpy()
         y_pred[:] = self.td_mean + y_pred @ self.td_std
 
         return y_pred
@@ -154,7 +159,7 @@ class Meta:
     def args_str(self):
         out_str = ""
 
-        for k, v in vars(self.args):
+        for k, v in vars(self.args).items():
             out_str += f"{k}: {v}\n"
 
         return out_str

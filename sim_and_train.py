@@ -156,7 +156,7 @@ def sim_and_train(args,
     model.to(device)
 
     meta = Meta(args,
-                traj_data.generator,
+                traj_data,
                 train_data_mean=norm_center,
                 train_data_std=norm_weight)
 

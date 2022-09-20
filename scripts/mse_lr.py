@@ -1,17 +1,24 @@
 import pandas
 import seaborn as sns
 import numpy as np
+import matplotlib
 from matplotlib import pyplot as plt
 import sys
+
+font = {'size' : 22}
+
+matplotlib.rc('font', **font)
 
 def main():
     data = pandas.read_csv(sys.argv[1])
 
     control_rnn_size = np.unique(np.sort(data['control_rnn_size'].to_numpy()))
 
-    fig, axs = plt.subplots(2, int(np.ceil(len(control_rnn_size) / 2)))
+    fig, axs = plt.subplots(
+            2, int(np.ceil(len(control_rnn_size) / 2)), sharex=True,
+            sharey=True)
+
     fig.set_size_inches((20, 15))
-    fig.set_dpi(120)
 
     for idx, crs in enumerate(control_rnn_size):
         ax = axs.reshape(-1)[idx]
@@ -23,12 +30,20 @@ def main():
                      hue='encoder_size',
                      ax=ax)
 
-        ax.set_xscale('log')
-        ax.set_yscale('log')
-        ax.set_title(f"{crs}")
+        ax.set_ylim(5e-4, 1e-2)
+        ax.set_title("$n_{LSTM} = "f"{crs}$")
+        ax.set_ylabel("Validation loss")
+        ax.set_xlabel("Learning rate")
+
+        if idx != 0:
+            ax.legend().remove()
+
+    axs[0, 0].set_xscale('log')
+    axs[0, 0].set_yscale('log')
+    axs[0, 0].legend(title="$n_e / dim(Z)$")
 
     fig.tight_layout()
-    fig.savefig('boxplot.png')
+    fig.savefig(sys.argv[2])
 
 
 if __name__ == "__main__":

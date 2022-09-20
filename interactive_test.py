@@ -25,6 +25,8 @@ def main():
     print(meta)
 
     if args.print_info:
+        print(meta.args_str())
+        print(vars(meta.generator._seq_gen))
         return
 
     meta.set_root(dirname(__file__))
@@ -36,6 +38,14 @@ def main():
     ax.semilogy(meta.val_loss, label='Validation loss')
     ax.semilogy(meta.test_loss, label='Test loss')
     ax.legend()
+    ax.vlines(
+            np.argmin(meta.val_loss),
+            ymin=0, ymax=np.max(meta.test_loss),
+            colors='r',
+            linestyles='dashed')
+    ax.set_xlabel('Training epochs')
+    fig.tight_layout()
+    fig.savefig('loss.pdf')
     plt.show()
 
     model.eval()
@@ -47,14 +57,15 @@ def main():
         while True:
             fig, ax = plt.subplots()
 
-            x0, t, y, u = trajectory_generator.get_example(time_horizon=10.,
+            x0, t, y, u = trajectory_generator.get_example(time_horizon=15.,
                                                            n_samples=1000)
 
             x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
 
             y_pred = meta.predict(model, t_feed, x0_feed, u_feed)
 
-            print(np.mean(np.square(y - np.flip(y_pred, 0))))
+            sq_error = np.square(y - np.flip(y_pred, 0))
+            print(np.mean(np.sum(sq_error, axis=1)))
 
             ax.plot(t_feed, y_pred, 'k', label='Prediction')
             ax.plot(t, y, 'b--', label='True state')
