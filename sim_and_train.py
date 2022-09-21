@@ -2,7 +2,7 @@ import torch
 
 torch.set_default_dtype(torch.float32)
 
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from trajectory import (TrajectoryGenerator, TrajectoryDataset,
                         SequenceGenerator)
 from flow_model import CausalFlowModel
@@ -19,50 +19,49 @@ from scipy.linalg import sqrtm, inv
 
 def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
              control_delta, n_trajectories, n_samples, time_horizon,
-             examples_per_traj):
+             examples_per_traj, split):
+    if split[0] + split[1] >= 100:
+        raise Exception("Invalid data split.")
+
     trajectory_generator = TrajectoryGenerator(
         dynamics,
         control_delta=control_delta,
         control_generator=control_generator)
 
-    return TrajectoryDataset(trajectory_generator,
-                             n_trajectories=n_trajectories,
-                             n_samples=n_samples,
-                             time_horizon=time_horizon,
-                             examples_per_traj=examples_per_traj)
+    n_val_t = int(n_trajectories * (split[0] / 100.))
+    n_test_t = int(n_trajectories * (split[1] / 100.))
+    n_train_t = n_trajectories - n_val_t - n_test_t
+    n_trajectories = (n_train_t, n_val_t, n_test_t)
+
+    return (TrajectoryDataset(trajectory_generator,
+                              n_trajectories=n,
+                              n_samples=n_samples,
+                              time_horizon=time_horizon,
+                              examples_per_traj=examples_per_traj)
+            for n in n_trajectories)
 
 
-def whiten_targets(data: torch.utils.data.Subset, mean=None, std=None):
+def whiten_targets(data: TrajectoryDataset, mean=None, std=None):
     if mean is None:
-        mean = data.dataset.state[data.indices].mean(axis=0)
+        mean = data.state.mean(axis=0)
 
     if std is None:
-        std = sqrtm(np.cov(data.dataset.state[data.indices].T))
+        std = sqrtm(np.cov(data.state.T))
+
+    print(mean, std)
 
     istd = inv(std)
 
-    data.dataset.state[data.indices] = (
-        (data.dataset.state[data.indices] - mean) @ istd).type(
-            torch.get_default_dtype())
+    data.state[:] = ((data.state - mean) @ istd).type(
+        torch.get_default_dtype())
 
-    data.dataset.init_state[data.indices] = (
-        (data.dataset.init_state[data.indices] - mean) @ istd).type(
-            torch.get_default_dtype())
+    data.init_state[:] = ((data.init_state - mean) @ istd).type(
+        torch.get_default_dtype())
 
     return mean, std
 
 
-def preprocess(traj_data, batch_size, split):
-    if split[0] + split[1] >= 100:
-        raise Exception("Invalid data split.")
-
-    val_len = int((float(split[0]) / 100.) * len(traj_data))
-    test_len = int((float(split[1]) / 100.) * len(traj_data))
-
-    train_data, val_data, test_data = random_split(
-        traj_data,
-        lengths=(len(traj_data) - (val_len + test_len), val_len, test_len))
-
+def preprocess(train_data, val_data, test_data, batch_size, split):
     norm_center, norm_weight = whiten_targets(train_data)
     whiten_targets(val_data, norm_center, norm_weight)
     whiten_targets(test_data, norm_center, norm_weight)
@@ -90,11 +89,9 @@ def training_loop(meta, model, loss_fn, optimizer, sched, early_stop, train_dl,
             train(example, loss_fn, model, optimizer, device)
 
         model.eval()
-
-        with torch.no_grad():
-            train_loss = validate(train_dl, loss_fn, model, device)
-            val_loss = validate(val_dl, loss_fn, model, device)
-            test_loss = validate(test_dl, loss_fn, model, device)
+        train_loss = validate(train_dl, loss_fn, model, device)
+        val_loss = validate(val_dl, loss_fn, model, device)
+        test_loss = validate(test_dl, loss_fn, model, device)
 
         sched.step(val_loss)
         early_stop.step(val_loss)
@@ -125,38 +122,46 @@ def sim_and_train(args,
                   load_data=False):
 
     if load_data:
-        traj_data = torch.load(args.load_data)
+        train_data, val_data, test_data = torch.load(args.load_data)
 
     else:
         examples_per_traj = (args.n_samples if args.generate_test_set else
                              args.examples_per_traj)
 
-        traj_data = simulate(dynamics,
-                             control_generator,
-                             control_delta=args.control_delta,
-                             n_trajectories=args.n_trajectories,
-                             n_samples=args.n_samples,
-                             time_horizon=args.time_horizon,
-                             examples_per_traj=examples_per_traj)
+        train_data, val_data, test_data = simulate(
+            dynamics,
+            control_generator,
+            control_delta=args.control_delta,
+            n_trajectories=args.n_trajectories,
+            n_samples=args.n_samples,
+            time_horizon=args.time_horizon,
+            examples_per_traj=examples_per_traj,
+            split=args.data_split)
 
     if args.save_data and not args.generate_test_set:
-        torch.save(traj_data, f'outputs/{args.save_data}')
+        torch.save((train_data, val_data, test_data),
+                   f'outputs/{args.save_data}')
 
     if args.generate_test_set:
-        torch.save(traj_data, f'outputs/{args.generate_test_set}')
+        torch.save((train_data, val_data, test_data),
+                   f'outputs/{args.generate_test_set}')
         return
 
     train_dl, val_dl, test_dl, norm_center, norm_weight = preprocess(
-        traj_data, batch_size=args.batch_size, split=args.data_split)
+        train_data,
+        val_data,
+        test_data,
+        batch_size=args.batch_size,
+        split=args.data_split)
 
-    model: CausalFlowModel = instantiate_model(args, traj_data.state_dim,
-                                               traj_data.control_dim)
+    model: CausalFlowModel = instantiate_model(args, train_data.state_dim,
+                                               train_data.control_dim)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     meta = Meta(args,
-                traj_data,
+                train_data,
                 train_data_mean=norm_center,
                 train_data_std=norm_weight)
 
