@@ -273,18 +273,16 @@ class SinusoidalSequence(SequenceGenerator):
     def __init__(self, rng=None):
         super(SinusoidalSequence, self).__init__(rng)
 
-        self._f_mean = 1.0
-        self._f_std = 1.0
         self._amp_mean = 1.0
         self._amp_std = 1.0
 
     def _sample_impl(self, time_range, delta):
         amplitude = self._rng.lognormal(mean=self._amp_mean,
                                         sigma=self._amp_std)
-        frequency = self._rng.lognormal(mean=self._f_mean, sigma=self._f_std)
+        frequency = self._rng.uniform(0, 1)
 
         n_control_vals = int(1 +
                              np.floor((time_range[1] - time_range[0]) / delta))
         time = np.linspace(time_range[0], time_range[1], n_control_vals)
 
-        return (amplitude * np.sin(frequency * time)).reshape((-1, 1))
+        return (amplitude * np.sin(2 * np.pi * frequency / 2 * time)).reshape((-1, 1))

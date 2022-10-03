@@ -6,7 +6,6 @@ from matplotlib import pyplot as plt
 import sys
 
 font = {'size' : 22}
-
 matplotlib.rc('font', **font)
 
 def main():
@@ -30,7 +29,7 @@ def main():
                      hue='encoder_size',
                      ax=ax)
 
-        ax.set_ylim(5e-4, 1e-2)
+        ax.set_ylim(1e-2, 1.)
         ax.set_title("$n_{LSTM} = "f"{crs}$")
         ax.set_ylabel("Validation loss")
         ax.set_xlabel("Learning rate")
@@ -38,9 +37,10 @@ def main():
         if idx != 0:
             ax.legend().remove()
 
-    axs[0, 0].set_xscale('log')
-    axs[0, 0].set_yscale('log')
-    axs[0, 0].legend(title="$n_e / dim(Z)$")
+    first_ax = axs.reshape(-1)[0]
+    first_ax.set_xscale('log')
+    first_ax.set_yscale('log')
+    first_ax.legend(title="$n_e / dim(Z)$")
 
     fig.tight_layout()
     fig.savefig(sys.argv[2])
