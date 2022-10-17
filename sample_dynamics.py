@@ -23,7 +23,7 @@ def main():
     args = parse_args()
 
     dyn = dynamics.FitzHughNagumo(tau=0.8, a=-0.3, b=1.4)
-    inputs = trajectory.LogNormalSqWave(mean=np.log(0.2), std=0.1, period=args.period)
+    inputs = trajectory.LogNormalSqWave(mean=np.log(0.2), std=args.std, period=args.period)
     gen = trajectory.TrajectoryGenerator(dyn, args.control_delta, inputs)
 
     while True:

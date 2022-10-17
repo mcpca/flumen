@@ -36,10 +36,10 @@ def main():
 
     trajectory_generator: TrajectoryGenerator = experiment.generator
     delta = trajectory_generator._delta
-    trajectory_generator._seq_gen = SinusoidalSequence()
+    # trajectory_generator._seq_gen = SinusoidalSequence()
 
     for i_plot in range(args.n_plots):
-        fig, ax = plt.subplots(model.state_dim, 1, sharex=True)
+        fig, ax = plt.subplots(1 + model.state_dim, 1, sharex=True)
 
         x0, t, y, u = trajectory_generator.get_example(
             time_horizon=time_horizon, n_samples=1000)
@@ -49,10 +49,13 @@ def main():
         y_pred = experiment.predict(model, t_feed, x0_feed, u_feed)
         print(np.mean(np.square(y - np.flip(y_pred, 0))))
 
-        for k, ax_ in enumerate(ax):
+        for k, ax_ in enumerate(ax[:-1]):
             ax_.plot(t_feed, y_pred[:, k], 'k', label='Prediction')
             ax_.plot(t, y[:, k], 'b--', label='True state')
             ax_.set_ylabel(f"$x_{k+1}$")
+
+        ax[-1].step(np.arange(0., time_horizon + delta, delta), u)
+        ax[-1].set_ylabel("$u$")
 
         if i_plot == 0:
             ax[0].legend(loc='upper right')
