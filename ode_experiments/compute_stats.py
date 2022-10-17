@@ -33,8 +33,6 @@ def parse_args():
 
     return ap.parse_args()
 
-    return
-
 
 def main():
     args = parse_args()

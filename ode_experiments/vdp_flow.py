@@ -1,4 +1,4 @@
-from trajectory import GaussianSqWave
+from trajectory_generator import GaussianSqWave
 from dynamics import VanDerPol
 from utils import parse_args, print_gpu_info
 from sim_and_train import sim_and_train

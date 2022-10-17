@@ -3,10 +3,9 @@ import torch
 torch.set_default_dtype(torch.float32)
 
 from torch.utils.data import DataLoader
-from trajectory import (TrajectoryGenerator, TrajectoryDataset,
-                        SequenceGenerator)
-from flow_model import CausalFlowModel
-from train import EarlyStopping, train, validate
+from trajectory_generator import TrajectoryGenerator, SequenceGenerator
+from flow_model import CausalFlowModel, TrajectoryDataset, train, validate
+from flow_model.train import EarlyStopping
 from dynamics import Dynamics
 
 from meta import Meta, instantiate_model

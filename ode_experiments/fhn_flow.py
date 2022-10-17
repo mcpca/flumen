@@ -1,4 +1,4 @@
-from trajectory import LogNormalSqWave
+from trajectory_generator import LogNormalSqWave
 from dynamics import FitzHughNagumo
 from utils import parse_args, print_gpu_info
 from sim_and_train import sim_and_train

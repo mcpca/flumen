@@ -1,5 +1,5 @@
 import numpy as np
-from trajectory import RandomWalkSequence
+from trajectory_generator import RandomWalkSequence
 from utils import parse_args, print_gpu_info
 from dynamics import LinearSys
 from sim_and_train import sim_and_train

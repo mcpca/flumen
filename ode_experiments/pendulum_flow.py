@@ -1,4 +1,4 @@
-from trajectory import SinusoidalSequence
+from trajectory_generator import SinusoidalSequence
 from dynamics import Pendulum
 from utils import parse_args, print_gpu_info
 from sim_and_train import sim_and_train
