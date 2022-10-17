@@ -66,17 +66,16 @@ class TrajectoryGenerator:
 class TrajectoryDataset(Dataset):
 
     def __init__(self, generator: TrajectoryGenerator, n_trajectories,
-                 n_samples, time_horizon, examples_per_traj):
+                 n_samples, time_horizon):
         self.generator = generator
 
         self.n_trajectories = n_trajectories
         self.n_samples = n_samples
-        self.examples_per_traj = examples_per_traj
         self.time_horizon = time_horizon
 
         self.state_dim, self.control_dim = generator._dyn.dims()
 
-        n_examples = n_trajectories * examples_per_traj
+        n_examples = n_trajectories * n_samples
 
         self.init_state = torch.empty(
             (n_examples, self.state_dim)).type(torch.get_default_dtype())
@@ -87,32 +86,18 @@ class TrajectoryDataset(Dataset):
         rnn_input_data = []
         seq_len_data = []
 
-        rng = np.random.default_rng()
-
         for k_tr in range(n_trajectories):
             x0, t, y, u = generator.get_example(time_horizon, n_samples)
             u = torch.from_numpy(u)
 
-            self.init_state[k_tr * examples_per_traj:(k_tr + 1) *
-                            examples_per_traj] = torch.from_numpy(x0)
+            self.init_state[k_tr * n_samples:(k_tr + 1) * n_samples] = torch.from_numpy(x0)
 
-            # generate random indexes from which samples will be taken
-            if examples_per_traj < n_samples:
-                end_state_idxs = rng.integers(n_samples,
-                                              size=(examples_per_traj, ),
-                                              dtype=np.uint64)
-            else:
-                end_state_idxs = np.arange(n_samples, dtype=np.uint64)
-
-            for k_ei, end_idx in enumerate(end_state_idxs):
-                self.state[k_tr * examples_per_traj + k_ei] = torch.from_numpy(
-                    y[end_idx])
-                self.time[k_tr * examples_per_traj +
-                          k_ei] = torch.from_numpy(t[end_idx] -
+            for k_s in range(n_samples):
+                self.state[k_tr * n_samples + k_s] = torch.from_numpy(y[k_s])
+                self.time[k_tr * n_samples + k_s] = torch.from_numpy(t[k_s] -
                                                    self.generator._init_time)
 
-                rnn_input, rnn_input_len = self.process_example(
-                    0, end_idx, t, u)
+                rnn_input, rnn_input_len = self.process_example(0, k_s, t, u)
 
                 seq_len_data.append(rnn_input_len)
                 rnn_input_data.append(rnn_input)

@@ -26,11 +26,6 @@ def parse_args():
                     help="Number of state samples per trajectory",
                     default=50)
 
-    ap.add_argument('--examples_per_traj',
-                    type=positive_int,
-                    help="Number of training examples per trajectory",
-                    default=25)
-
     ap.add_argument(
         '--data_split',
         nargs=2,
@@ -121,12 +116,6 @@ def parse_args():
     ap.add_argument('--save_data',
                     type=str,
                     help="Path to write .pth trajectory dataset",
-                    default=None)
-
-    ap.add_argument('--generate_test_set',
-                    type=str,
-                    help="Path to write .pth test dataset. " \
-                    "No model will be trained if this option is used",
                     default=None)
 
     ap.add_argument('--load_data',

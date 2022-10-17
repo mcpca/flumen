@@ -18,8 +18,7 @@ from scipy.linalg import sqrtm, inv
 
 
 def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
-             control_delta, n_trajectories, n_samples, time_horizon,
-             examples_per_traj, split):
+             control_delta, n_trajectories, n_samples, time_horizon, split):
     if split[0] + split[1] >= 100:
         raise Exception("Invalid data split.")
 
@@ -36,8 +35,7 @@ def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
     return (TrajectoryDataset(trajectory_generator,
                               n_trajectories=n,
                               n_samples=n_samples,
-                              time_horizon=time_horizon,
-                              examples_per_traj=examples_per_traj)
+                              time_horizon=time_horizon)
             for n in n_trajectories)
 
 
@@ -47,8 +45,6 @@ def whiten_targets(data: TrajectoryDataset, mean=None, std=None):
 
     if std is None:
         std = sqrtm(np.cov(data.state.T))
-
-    print(mean, std)
 
     istd = inv(std)
 
@@ -125,9 +121,6 @@ def sim_and_train(args,
         train_data, val_data, test_data = torch.load(args.load_data)
 
     else:
-        examples_per_traj = (args.n_samples if args.generate_test_set else
-                             args.examples_per_traj)
-
         train_data, val_data, test_data = simulate(
             dynamics,
             control_generator,
@@ -135,17 +128,11 @@ def sim_and_train(args,
             n_trajectories=args.n_trajectories,
             n_samples=args.n_samples,
             time_horizon=args.time_horizon,
-            examples_per_traj=examples_per_traj,
             split=args.data_split)
 
-    if args.save_data and not args.generate_test_set:
+    if args.save_data:
         torch.save((train_data, val_data, test_data),
                    f'outputs/{args.save_data}')
-
-    if args.generate_test_set:
-        torch.save((train_data, val_data, test_data),
-                   f'outputs/{args.generate_test_set}')
-        return
 
     train_dl, val_dl, test_dl, norm_center, norm_weight = preprocess(
         train_data,
