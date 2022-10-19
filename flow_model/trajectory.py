@@ -5,8 +5,7 @@ from torch.utils.data import Dataset
 
 class TrajectoryDataset(Dataset):
 
-    def __init__(self, generator, n_trajectories,
-                 n_samples, time_horizon):
+    def __init__(self, generator, n_trajectories, n_samples, time_horizon):
         self.generator = generator
 
         self.n_trajectories = n_trajectories
@@ -30,12 +29,14 @@ class TrajectoryDataset(Dataset):
             x0, t, y, u = generator.get_example(time_horizon, n_samples)
             u = torch.from_numpy(u)
 
-            self.init_state[k_tr * n_samples:(k_tr + 1) * n_samples] = torch.from_numpy(x0)
+            self.init_state[k_tr * n_samples:(k_tr + 1) *
+                            n_samples] = torch.from_numpy(x0)
 
             for k_s in range(n_samples):
                 self.state[k_tr * n_samples + k_s] = torch.from_numpy(y[k_s])
-                self.time[k_tr * n_samples + k_s] = torch.from_numpy(t[k_s] -
-                                                   self.generator._init_time)
+                self.time[k_tr * n_samples +
+                          k_s] = torch.from_numpy(t[k_s] -
+                                                  self.generator._init_time)
 
                 rnn_input, rnn_input_len = self.process_example(0, k_s, t, u)
 

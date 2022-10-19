@@ -4,6 +4,7 @@ from flow_model_odedata.utils import parse_args, print_gpu_info
 from dynamics import FitzHughNagumo
 from math import log
 
+
 def main():
     args = parse_args()
 

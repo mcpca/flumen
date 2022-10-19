@@ -1,4 +1,5 @@
 import os, sys
+
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import torch
@@ -14,7 +15,7 @@ import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 from os.path import isfile
 
-PREFIX='mse_time_horizon_'
+PREFIX = 'mse_time_horizon_'
 
 
 def parse_args():
@@ -58,12 +59,17 @@ def compute_loss_vals(args, meta):
 
     for time_horizon in th_vals:
         n_samples = int(100 * time_horizon / 15.)
-        dset = TrajectoryDataset(generator, n_trajectories=args.n_mc,
-                n_samples=n_samples,
-                time_horizon=time_horizon)
+        dset = TrajectoryDataset(generator,
+                                 n_trajectories=args.n_mc,
+                                 n_samples=n_samples,
+                                 time_horizon=time_horizon)
 
-        dset.state[:] = ((dset.state[:] - meta.td_mean) @ meta.td_std_inv).type(torch.get_default_dtype())
-        dset.init_state[:] = ((dset.init_state[:] - meta.td_mean) @ meta.td_std_inv).type(torch.get_default_dtype())
+        dset.state[:] = (
+            (dset.state[:] - meta.td_mean) @ meta.td_std_inv).type(
+                torch.get_default_dtype())
+        dset.init_state[:] = (
+            (dset.init_state[:] - meta.td_mean) @ meta.td_std_inv).type(
+                torch.get_default_dtype())
 
         dloader = DataLoader(dset, shuffle=False, batch_size=1024)
         loss_fn = torch.nn.MSELoss()

@@ -63,6 +63,7 @@ def train(example, loss_fn, model, optimizer, device):
 
 
 class EarlyStopping:
+
     def __init__(self, es_patience, es_delta=0.):
         self.patience = es_patience
         self.delta = es_delta

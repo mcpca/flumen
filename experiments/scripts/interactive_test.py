@@ -1,4 +1,5 @@
 import os, sys
+
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import torch
@@ -12,7 +13,8 @@ from argparse import ArgumentParser
 def parse_args():
     ap = ArgumentParser()
     ap.add_argument('path', type=str, help="Path to .pth file")
-    ap.add_argument('--print_info', action='store_true',
+    ap.add_argument('--print_info',
+                    action='store_true',
                     help="Print training metadata and quit")
 
     return ap.parse_args()
@@ -37,11 +39,11 @@ def main():
     ax.semilogy(meta.val_loss, label='Validation loss')
     ax.semilogy(meta.test_loss, label='Test loss')
     ax.legend()
-    ax.vlines(
-            np.argmin(meta.val_loss),
-            ymin=0, ymax=np.max(meta.test_loss),
-            colors='r',
-            linestyles='dashed')
+    ax.vlines(np.argmin(meta.val_loss),
+              ymin=0,
+              ymax=np.max(meta.test_loss),
+              colors='r',
+              linestyles='dashed')
     ax.set_xlabel('Training epochs')
     fig.tight_layout()
     fig.savefig('loss.pdf')

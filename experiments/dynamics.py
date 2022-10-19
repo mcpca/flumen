@@ -3,6 +3,7 @@ from flow_model_odedata.trajectory_generator import Dynamics
 
 
 class LinearSys(Dynamics):
+
     def __init__(self, a, b):
         super().__init__(a.shape[0], b.shape[1])
 
@@ -14,6 +15,7 @@ class LinearSys(Dynamics):
 
 
 class VanDerPol(Dynamics):
+
     def __init__(self, damping):
         super().__init__(2, 1)
         self.damping = damping
@@ -45,10 +47,11 @@ class FitzHughNagumo(Dynamics):
 
 
 class Pendulum(Dynamics):
+
     def __init__(self, damping, freq=2 * np.pi):
         super().__init__(2, 1)
         self.damping = damping
-        self.freq2 = freq ** 2
+        self.freq2 = freq**2
 
     def _dx(self, x, u):
         p, v = x

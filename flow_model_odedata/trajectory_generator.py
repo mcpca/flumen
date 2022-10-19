@@ -30,6 +30,7 @@ def pack_model_inputs(x0, t, u, delta):
 
 
 class Dynamics:
+
     def __init__(self, state_dim, control_dim):
         self.n = state_dim
         self.m = control_dim

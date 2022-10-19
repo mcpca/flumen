@@ -38,12 +38,7 @@ def instantiate_model(args, state_dim, control_dim):
 
 class Meta:
 
-    def __init__(self,
-                 args,
-                 data,
-                 train_data_mean,
-                 train_data_std,
-                 save_root):
+    def __init__(self, args, data, train_data_mean, train_data_std, save_root):
         self.model = None
 
         self.train_id = uuid4()

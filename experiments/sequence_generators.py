@@ -1,6 +1,7 @@
 from flow_model_odedata.trajectory_generator import SequenceGenerator
 import numpy as np
 
+
 class GaussianSequence(SequenceGenerator):
 
     def __init__(self, mean=0., std=1., rng=None):

@@ -5,18 +5,20 @@ import matplotlib
 from matplotlib import pyplot as plt
 import sys
 
-font = {'size' : 22}
+font = {'size': 22}
 
 matplotlib.rc('font', **font)
+
 
 def main():
     data = pandas.read_csv(sys.argv[1])
 
     control_rnn_size = np.unique(np.sort(data['control_rnn_size'].to_numpy()))
 
-    fig, axs = plt.subplots(
-            2, int(np.ceil(len(control_rnn_size) / 2)), sharex=True,
-            sharey=True)
+    fig, axs = plt.subplots(2,
+                            int(np.ceil(len(control_rnn_size) / 2)),
+                            sharex=True,
+                            sharey=True)
 
     fig.set_size_inches((20, 15))
 
@@ -31,7 +33,8 @@ def main():
                      ax=ax)
 
         ax.set_ylim(5e-4, 1e-2)
-        ax.set_title("$n_{LSTM} = "f"{crs}$")
+        ax.set_title("$n_{LSTM} = "
+                     f"{crs}$")
         ax.set_ylabel("Validation loss")
         ax.set_xlabel("Learning rate")
 

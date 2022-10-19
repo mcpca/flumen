@@ -111,7 +111,7 @@ def parse_args():
     ap.add_argument('--experiment_id',
                     type=str,
                     help="Human-readable experiment identifier. "
-                         "Nothing is written to disk if this is not provided.",
+                    "Nothing is written to disk if this is not provided.",
                     default=None)
 
     ap.add_argument('--write_dir',
