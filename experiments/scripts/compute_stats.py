@@ -1,3 +1,6 @@
+import os, sys
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+
 from argparse import ArgumentParser
 import os, csv, re
 from copy import deepcopy
@@ -8,9 +11,8 @@ from torch.utils.data import DataLoader
 import numpy as np
 from scipy.stats import sem
 
-from flow_model import CausalFlowModel
-from trajectory import TrajectoryDataset
-from meta import Meta
+from flow_model import CausalFlowModel, TrajectoryDataset
+from flow_model_odedata import Meta
 
 
 def parse_args():
@@ -65,7 +67,6 @@ def main():
             load_path = os.path.join(dir, fname)
             meta: Meta = torch.load(load_path,
                                     map_location=torch.device('cpu'))
-            meta.set_root(os.path.dirname(__file__))
 
             rows.append({'id': meta.train_id.hex})
 

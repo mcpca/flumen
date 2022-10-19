@@ -1,8 +1,10 @@
+import os, sys
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+
 import torch
 from torch.utils.data import DataLoader
-from trajectory import TrajectoryDataset, TrajectoryGenerator, pack_model_inputs
-from train import validate
-from meta import Meta
+from flow_model import TrajectoryDataset, validate
+from flow_model_odedata import TrajectoryGenerator, Meta
 
 import pandas as pd
 import seaborn as sns
@@ -10,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from argparse import ArgumentParser
-from os.path import dirname, isfile
+from os.path import isfile
 
 PREFIX='mse_time_horizon_'
 
@@ -46,7 +48,6 @@ def main():
 
 
 def compute_loss_vals(args, meta):
-    meta.set_root(dirname(__file__))
     model = meta.load_model()
     model.eval()
 
@@ -56,12 +57,10 @@ def compute_loss_vals(args, meta):
     loss_vals = []
 
     for time_horizon in th_vals:
-        n_samples = int(2000 * time_horizon / 15.)
-        n_examples = int(100 * time_horizon / 15.)
+        n_samples = int(100 * time_horizon / 15.)
         dset = TrajectoryDataset(generator, n_trajectories=args.n_mc,
                 n_samples=n_samples,
-                time_horizon=time_horizon,
-                examples_per_traj=n_examples)
+                time_horizon=time_horizon)
 
         dset.state[:] = ((dset.state[:] - meta.td_mean) @ meta.td_std_inv).type(torch.get_default_dtype())
         dset.init_state[:] = ((dset.init_state[:] - meta.td_mean) @ meta.td_std_inv).type(torch.get_default_dtype())

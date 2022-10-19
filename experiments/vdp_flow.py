@@ -1,7 +1,7 @@
 from trajectory_generator import GaussianSqWave
 from dynamics import VanDerPol
 from utils import parse_args, print_gpu_info
-from sim_and_train import sim_and_train
+from sim_and_train import run_experiment
 
 
 def main():
@@ -10,7 +10,7 @@ def main():
     dynamics = VanDerPol(1.0)
     control_generator = GaussianSqWave(period=5)
 
-    sim_and_train(args, dynamics, control_generator)
+    run_experiment(args, dynamics, control_generator)
 
 
 if __name__ == '__main__':

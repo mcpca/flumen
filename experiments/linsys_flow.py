@@ -1,8 +1,8 @@
 import numpy as np
-from trajectory_generator import RandomWalkSequence
-from utils import parse_args, print_gpu_info
+from sequence_generators import RandomWalkSequence
+from flow_model_odedata import run_experiment
+from flow_model_odedata.utils import parse_args, print_gpu_info
 from dynamics import LinearSys
-from sim_and_train import sim_and_train
 
 
 def main():
@@ -13,7 +13,7 @@ def main():
     dynamics = LinearSys(a_matrix, b_matrix)
     control_generator = RandomWalkSequence()
 
-    sim_and_train(args, dynamics, control_generator)
+    run_experiment(args, dynamics, control_generator)
 
 
 if __name__ == '__main__':

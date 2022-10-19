@@ -1,10 +1,11 @@
+import os, sys
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+
 import torch
-from meta import Meta
-from trajectory_generator import TrajectoryGenerator, pack_model_inputs, SinusoidalSequence
+from flow_model_odedata import Meta, TrajectoryGenerator, pack_model_inputs
 import matplotlib.pyplot as plt
 import numpy as np
 
-from os.path import dirname
 from argparse import ArgumentParser
 
 
@@ -29,8 +30,6 @@ def main():
         print(vars(meta.generator._seq_gen))
         return
 
-    meta.set_root(dirname(__file__))
-
     model = meta.load_model()
 
     fig, ax = plt.subplots()
@@ -52,7 +51,6 @@ def main():
 
     trajectory_generator: TrajectoryGenerator = meta.generator
     delta = trajectory_generator._delta
-    trajectory_generator._seq_gen = SinusoidalSequence()
 
     with torch.no_grad():
         while True:

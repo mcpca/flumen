@@ -6,6 +6,7 @@ from time import time
 from datetime import datetime
 from inspect import cleandoc
 from shlex import quote
+from copy import deepcopy
 
 from scipy.linalg import inv
 
@@ -19,9 +20,7 @@ def timestamp_str(timestamp):
 
 def save_path(root, dir, timestamp, train_id):
     file_name = dir + '_' + timestamp_str(timestamp) + '_' + str(train_id.hex)
-
-    root = root if root else os.path.dirname(__file__)
-    path = os.path.join(root, 'outputs', dir)
+    path = os.path.join(root, dir)
 
     return path, file_name
 
@@ -44,7 +43,7 @@ class Meta:
                  data,
                  train_data_mean,
                  train_data_std,
-                 root=None):
+                 save_root):
         self.model = None
 
         self.train_id = uuid4()
@@ -71,12 +70,10 @@ class Meta:
         except:
             self.git_head = None
 
-        self.save_root = root
-
-        if args.save_model:
+        if args.experiment_id:
             self.creation_timestamp = time()
-            self.save_path, self.file_name = save_path(self.save_root,
-                                                       args.save_model,
+            self.save_path, self.file_name = save_path(save_root,
+                                                       args.experiment_id,
                                                        self.creation_timestamp,
                                                        self.train_id)
             os.makedirs(self.save_path, exist_ok=True)
@@ -100,15 +97,7 @@ class Meta:
 
         self.train_time = 0
 
-    def set_root(self, root):
-        self.save_root = root
-
-        if self.args.save_model:
-            self.save_path, self.file_name = save_path(self.save_root,
-                                                       self.args.save_model,
-                                                       self.creation_timestamp,
-                                                       self.train_id)
-            os.makedirs(self.save_path, exist_ok=True)
+        self.model_state = None
 
     def register_progress(self, train, val, test, best):
         self.n_epochs += 1
@@ -122,21 +111,11 @@ class Meta:
             self.test_loss_best = test
 
     def save_model(self, model):
-        if self.save_path:
-            torch.save(
-                model.state_dict(),
-                os.path.join(self.save_path, self.file_name + '_params.pth'))
+        self.model_state = deepcopy(model.state_dict())
 
     def load_model(self, device='cpu'):
-        if not self.save_path:
-            raise Exception("No model on disk associated with this metadata.")
-
-        params = torch.load(os.path.join(self.save_path,
-                                         self.file_name + '_params.pth'),
-                            map_location=torch.device(device))
-
         model = instantiate_model(self.args, *self.generator._dyn.dims())
-        model.load_state_dict(params)
+        model.load_state_dict(self.model_state)
 
         return model
 

@@ -108,10 +108,16 @@ def parse_args():
                     help="LR Scheduler -- Reduction factor",
                     default=5)
 
-    ap.add_argument('--save_model',
+    ap.add_argument('--experiment_id',
                     type=str,
-                    help="Subdirectory where the model will be saved",
+                    help="Human-readable experiment identifier. "
+                         "Nothing is written to disk if this is not provided.",
                     default=None)
+
+    ap.add_argument('--write_dir',
+                    type=str,
+                    help="Directory to which the model will be written.",
+                    default='./outputs')
 
     ap.add_argument('--save_data',
                     type=str,

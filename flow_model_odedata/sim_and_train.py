@@ -3,12 +3,11 @@ import torch
 torch.set_default_dtype(torch.float32)
 
 from torch.utils.data import DataLoader
-from trajectory_generator import TrajectoryGenerator, SequenceGenerator
+from .trajectory_generator import TrajectoryGenerator, Dynamics, SequenceGenerator
 from flow_model import CausalFlowModel, TrajectoryDataset, train, validate
 from flow_model.train import EarlyStopping
-from dynamics import Dynamics
 
-from meta import Meta, instantiate_model
+from .meta import Meta, instantiate_model
 
 import time
 
@@ -111,8 +110,8 @@ def training_loop(meta, model, loss_fn, optimizer, sched, early_stop, train_dl,
     return train_time
 
 
-def sim_and_train(args,
-                  dynamics: Dynamics = None,
+def run_experiment(args,
+                  dynamics=None,
                   control_generator: SequenceGenerator = None,
                   load_data=False):
 
@@ -149,7 +148,8 @@ def sim_and_train(args,
     meta = Meta(args,
                 train_data,
                 train_data_mean=norm_center,
-                train_data_std=norm_weight)
+                train_data_std=norm_weight,
+                save_root=args.write_dir)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
