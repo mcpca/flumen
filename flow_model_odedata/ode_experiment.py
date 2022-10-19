@@ -36,7 +36,7 @@ def instantiate_model(args, state_dim, control_dim):
                            decoder_depth=args.decoder_depth)
 
 
-class Meta:
+class ODEExperiment:
 
     def __init__(self, args, data, train_data_mean, train_data_std, save_root):
         self.model = None

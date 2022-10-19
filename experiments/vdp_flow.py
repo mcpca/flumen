@@ -1,5 +1,5 @@
-from trajectory_generator import GaussianSqWave
 from dynamics import VanDerPol
+from sequence_generators import GaussianSqWave
 from utils import parse_args, print_gpu_info
 from sim_and_train import run_experiment
 

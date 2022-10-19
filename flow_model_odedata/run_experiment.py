@@ -7,7 +7,7 @@ from .trajectory_generator import TrajectoryGenerator, Dynamics, SequenceGenerat
 from flow_model import CausalFlowModel, TrajectoryDataset, train, validate
 from flow_model.train import EarlyStopping
 
-from .meta import Meta, instantiate_model
+from .ode_experiment import ODEExperiment, instantiate_model
 
 import time
 
@@ -67,8 +67,8 @@ def preprocess(train_data, val_data, test_data, batch_size, split):
     return train_dl, val_dl, test_dl, norm_center, norm_weight
 
 
-def training_loop(meta, model, loss_fn, optimizer, sched, early_stop, train_dl,
-                  val_dl, test_dl, device, max_epochs):
+def training_loop(experiment, model, loss_fn, optimizer, sched, early_stop,
+                  train_dl, val_dl, test_dl, device, max_epochs):
     header_msg = f"{'Epoch':>5} :: {'Loss (Train)':>16} :: " \
             f"{'Loss (Val)':>16} :: {'Loss (Test)':>16} :: {'Best (Val)':>16}"
 
@@ -96,16 +96,16 @@ def training_loop(meta, model, loss_fn, optimizer, sched, early_stop, train_dl,
         )
 
         if early_stop.best_model:
-            meta.save_model(model)
+            experiment.save_model(model)
 
-        meta.register_progress(train_loss, val_loss, test_loss,
-                               early_stop.best_model)
+        experiment.register_progress(train_loss, val_loss, test_loss,
+                                     early_stop.best_model)
 
         if early_stop.early_stop:
             break
 
     train_time = time.time() - start
-    meta.save(train_time)
+    experiment.save(train_time)
 
     return train_time
 
@@ -145,11 +145,11 @@ def run_experiment(args,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    meta = Meta(args,
-                train_data,
-                train_data_mean=norm_center,
-                train_data_std=norm_weight,
-                save_root=args.write_dir)
+    experiment = ODEExperiment(args,
+                               train_data,
+                               train_data_mean=norm_center,
+                               train_data_std=norm_weight,
+                               save_root=args.write_dir)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -163,7 +163,7 @@ def run_experiment(args,
     early_stop = EarlyStopping(es_patience=args.es_patience,
                                es_delta=args.es_delta)
 
-    train_time = training_loop(meta,
+    train_time = training_loop(experiment,
                                model,
                                mse_loss,
                                optimizer,

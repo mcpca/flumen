@@ -1,5 +1,5 @@
 from utils import parse_args
-from sim_and_train import run_experiment
+from flow_model_odedata import run_experiment
 
 
 def main():

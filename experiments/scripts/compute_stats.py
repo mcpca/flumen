@@ -13,7 +13,7 @@ import numpy as np
 from scipy.stats import sem
 
 from flow_model import CausalFlowModel, TrajectoryDataset
-from flow_model_odedata import Meta
+from flow_model_odedata import ODEExperiment
 
 
 def parse_args():
@@ -66,13 +66,13 @@ def main():
                 continue
 
             load_path = os.path.join(dir, fname)
-            meta: Meta = torch.load(load_path,
-                                    map_location=torch.device('cpu'))
+            experiment: ODEExperiment = torch.load(
+                load_path, map_location=torch.device('cpu'))
 
-            rows.append({'id': meta.train_id.hex})
+            rows.append({'id': experiment.train_id.hex})
 
             for metric in metrics:
-                rows[-1][str(metric)] = metric(meta)
+                rows[-1][str(metric)] = metric(experiment)
 
         print(f"-- {dir}")
 
@@ -106,12 +106,14 @@ class TestOnData:
         self.data: TrajectoryDataset = torch.load(path)
         self.loss = torch.nn.MSELoss()
 
-    def __call__(self, meta: Meta):
-        model: CausalFlowModel = meta.load_model()
+    def __call__(self, experiment: ODEExperiment):
+        model: CausalFlowModel = experiment.load_model()
 
         data = deepcopy(self.data)
-        data.init_state[:] = (data.init_state - meta.td_mean) @ meta.td_std_inv
-        data.state[:] = (data.state - meta.td_mean) @ meta.td_std_inv
+        data.init_state[:] = (data.init_state -
+                              experiment.td_mean) @ experiment.td_std_inv
+        data.state[:] = (data.state -
+                         experiment.td_mean) @ experiment.td_std_inv
         loader = DataLoader(data, batch_size=1024, shuffle=False)
 
         rv = 0.
@@ -143,8 +145,8 @@ class TestError:
     def __init__(self):
         pass
 
-    def __call__(self, meta: Meta):
-        return meta.test_loss_best
+    def __call__(self, experiment: ODEExperiment):
+        return experiment.test_loss_best
 
     def __str__(self):
         return 'test_mse'
@@ -155,8 +157,8 @@ class ValError:
     def __init__(self):
         pass
 
-    def __call__(self, meta: Meta):
-        return meta.val_loss_best
+    def __call__(self, experiment: ODEExperiment):
+        return experiment.val_loss_best
 
     def __str__(self):
         return 'val_mse'
@@ -167,8 +169,8 @@ class TrainError:
     def __init__(self):
         pass
 
-    def __call__(self, meta: Meta):
-        return meta.train_loss_best
+    def __call__(self, experiment: ODEExperiment):
+        return experiment.train_loss_best
 
     def __str__(self):
         return 'train_mse'
@@ -179,8 +181,8 @@ class TrainTime:
     def __init__(self):
         pass
 
-    def __call__(self, meta: Meta):
-        return meta.train_time
+    def __call__(self, experiment: ODEExperiment):
+        return experiment.train_time
 
     def __str__(self):
         return 'train_time'
@@ -191,8 +193,8 @@ class GetParam:
     def __init__(self, param: str):
         self.param = param
 
-    def __call__(self, meta: Meta):
-        return vars(meta.args)[self.param]
+    def __call__(self, experiment: ODEExperiment):
+        return vars(experiment.args)[self.param]
 
     def __str__(self):
         return self.param

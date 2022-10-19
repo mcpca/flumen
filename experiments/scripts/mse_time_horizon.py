@@ -5,7 +5,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import torch
 from torch.utils.data import DataLoader
 from flow_model import TrajectoryDataset, validate
-from flow_model_odedata import TrajectoryGenerator, Meta
+from flow_model_odedata import TrajectoryGenerator, ODEExperiment
 
 import pandas as pd
 import seaborn as sns
@@ -32,11 +32,11 @@ def parse_args():
 def main():
     args = parse_args()
 
-    meta: Meta = torch.load(args.path, map_location=torch.device('cpu'))
-    fname = PREFIX + meta.train_id.hex + '.csv'
+    experiment: ODEExperiment = torch.load(args.path, map_location=torch.device('cpu'))
+    fname = PREFIX + experiment.train_id.hex + '.csv'
 
     if args.force or not isfile(fname):
-        loss_vals = compute_loss_vals(args, meta)
+        loss_vals = compute_loss_vals(args, experiment)
         loss_vals.to_csv(fname)
     else:
         loss_vals = pd.read_csv(fname)
@@ -48,11 +48,11 @@ def main():
     plt.show()
 
 
-def compute_loss_vals(args, meta):
-    model = meta.load_model()
+def compute_loss_vals(args, experiment):
+    model = experiment.load_model()
     model.eval()
 
-    generator: TrajectoryGenerator = meta.generator
+    generator: TrajectoryGenerator = experiment.generator
 
     th_vals = np.linspace(15., args.t_max, args.n_t_steps)
     loss_vals = []
@@ -65,10 +65,10 @@ def compute_loss_vals(args, meta):
                                  time_horizon=time_horizon)
 
         dset.state[:] = (
-            (dset.state[:] - meta.td_mean) @ meta.td_std_inv).type(
+            (dset.state[:] - experiment.td_mean) @ experiment.td_std_inv).type(
                 torch.get_default_dtype())
         dset.init_state[:] = (
-            (dset.init_state[:] - meta.td_mean) @ meta.td_std_inv).type(
+            (dset.init_state[:] - experiment.td_mean) @ experiment.td_std_inv).type(
                 torch.get_default_dtype())
 
         dloader = DataLoader(dset, shuffle=False, batch_size=1024)

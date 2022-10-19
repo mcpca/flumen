@@ -1,7 +1,7 @@
-from trajectory_generator import SinusoidalSequence
+from flow_model_odedata import run_experiment
+from flow_model_odedata.utils import parse_args, print_gpu_info
 from dynamics import Pendulum
-from utils import parse_args, print_gpu_info
-from sim_and_train import run_experiment
+from sequence_generators import SinusoidalSequence
 
 
 def main():

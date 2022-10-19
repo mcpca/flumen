@@ -3,7 +3,7 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import torch
-from flow_model_odedata import Meta, TrajectoryGenerator, pack_model_inputs
+from flow_model_odedata import ODEExperiment, TrajectoryGenerator, pack_model_inputs
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -23,25 +23,26 @@ def parse_args():
 def main():
     args = parse_args()
 
-    meta: Meta = torch.load(args.path, map_location=torch.device('cpu'))
+    experiment: ODEExperiment = torch.load(args.path,
+                                           map_location=torch.device('cpu'))
 
-    print(meta)
+    print(experiment)
 
     if args.print_info:
-        print(meta.args_str())
-        print(vars(meta.generator._seq_gen))
+        print(experiment.args_str())
+        print(vars(experiment.generator._seq_gen))
         return
 
-    model = meta.load_model()
+    model = experiment.load_model()
 
     fig, ax = plt.subplots()
-    ax.semilogy(meta.train_loss, label='Train loss')
-    ax.semilogy(meta.val_loss, label='Validation loss')
-    ax.semilogy(meta.test_loss, label='Test loss')
+    ax.semilogy(experiment.train_loss, label='Train loss')
+    ax.semilogy(experiment.val_loss, label='Validation loss')
+    ax.semilogy(experiment.test_loss, label='Test loss')
     ax.legend()
-    ax.vlines(np.argmin(meta.val_loss),
+    ax.vlines(np.argmin(experiment.val_loss),
               ymin=0,
-              ymax=np.max(meta.test_loss),
+              ymax=np.max(experiment.test_loss),
               colors='r',
               linestyles='dashed')
     ax.set_xlabel('Training epochs')
@@ -51,7 +52,7 @@ def main():
 
     model.eval()
 
-    trajectory_generator: TrajectoryGenerator = meta.generator
+    trajectory_generator: TrajectoryGenerator = experiment.generator
     delta = trajectory_generator._delta
 
     with torch.no_grad():
@@ -63,7 +64,7 @@ def main():
 
             x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
 
-            y_pred = meta.predict(model, t_feed, x0_feed, u_feed)
+            y_pred = experiment.predict(model, t_feed, x0_feed, u_feed)
 
             sq_error = np.square(y - np.flip(y_pred, 0))
             print(np.mean(np.sum(sq_error, axis=1)))
