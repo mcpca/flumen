@@ -1,5 +1,5 @@
-from utils import parse_args
 from flow_model_odedata import run_experiment
+from flow_model_odedata.utils import parse_args
 
 
 def main():
