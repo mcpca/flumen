@@ -1,7 +1,7 @@
 from dynamics import VanDerPol
 from sequence_generators import GaussianSqWave
-from utils import parse_args, print_gpu_info
-from sim_and_train import run_experiment
+from flow_model_odedata import run_experiment
+from flow_model_odedata.utils import parse_args, print_gpu_info
 
 
 def main():
