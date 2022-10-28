@@ -24,7 +24,7 @@ class VanDerPol(Dynamics):
         p, v = x
 
         dp = v
-        dv = -p + (self.damping**2) * (1 - p**2) * v + u
+        dv = -p + self.damping * (1 - p**2) * v + u
 
         return (dp, dv)
 
