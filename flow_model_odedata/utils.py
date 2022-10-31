@@ -26,22 +26,22 @@ def parse_args():
                     help="Number of state samples per trajectory",
                     default=50)
 
+    ap.add_argument('--noise_std',
+                    type=nonnegative_float,
+                    help="Standard deviation of measurement noise",
+                    default=0.0)
+
+    ap.add_argument('--noise_seed',
+                    type=positive_int,
+                    help="Measurement noise seed",
+                    default=None)
+
     ap.add_argument(
         '--data_split',
         nargs=2,
         type=percentage,
         help="Percentage of data used for validation and test sets",
         default=[20, 20])
-
-    ap.add_argument('--data_split_seed',
-                    type=positive_int,
-                    help="Seed for the random data split.",
-                    default=None)
-
-    ap.add_argument('--batch_size',
-                    type=positive_int,
-                    help="Batch size for training and validation",
-                    default=256)
 
     ap.add_argument('--control_rnn_size',
                     type=positive_int,
@@ -72,6 +72,11 @@ def parse_args():
                     type=positive_int,
                     help="Depth of the decoder",
                     default=3)
+
+    ap.add_argument('--batch_size',
+                    type=positive_int,
+                    help="Batch size for training and validation",
+                    default=256)
 
     ap.add_argument('--lr',
                     type=positive_float,

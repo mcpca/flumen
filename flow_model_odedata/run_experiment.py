@@ -55,16 +55,30 @@ def whiten_targets(data: TrajectoryDataset, mean=None, std=None):
     return mean, std
 
 
-def preprocess(train_data, val_data, test_data, batch_size, split):
-    norm_center, norm_weight = whiten_targets(train_data)
-    whiten_targets(val_data, norm_center, norm_weight)
-    whiten_targets(test_data, norm_center, norm_weight)
+def preprocess(train_data, val_data, test_data, batch_size, split, noise_std,
+               noise_seed):
+    rng = np.random.default_rng(seed=noise_seed)
+    for data in (train_data, val_data, test_data):
+        traj_noise = rng.normal(loc=0.0,
+                                scale=noise_std,
+                                size=(len(data), data.state_dim))
+
+        init_state_noise = rng.normal(loc=0.0,
+                                      scale=noise_std,
+                                      size=(len(data), data.state_dim))
+
+        data.state[:] += traj_noise
+        data.init_state[:] += init_state_noise
+
+    train_mean, train_std = whiten_targets(train_data)
+    whiten_targets(val_data, train_mean, train_std)
+    whiten_targets(test_data, train_mean, train_std)
 
     train_dl = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=False)
     test_dl = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
-    return train_dl, val_dl, test_dl, norm_center, norm_weight
+    return train_dl, val_dl, test_dl, train_mean, train_std
 
 
 def training_loop(experiment, model, loss_fn, optimizer, sched, early_stop,
@@ -137,7 +151,9 @@ def run_experiment(args,
         val_data,
         test_data,
         batch_size=args.batch_size,
-        split=args.data_split)
+        split=args.data_split,
+        noise_std=args.noise_std,
+        noise_seed=args.noise_seed)
 
     model: CausalFlowModel = instantiate_model(args, train_data.state_dim,
                                                train_data.control_dim)
