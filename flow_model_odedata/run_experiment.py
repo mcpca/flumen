@@ -2,83 +2,14 @@ import torch
 
 torch.set_default_dtype(torch.float32)
 
-from torch.utils.data import DataLoader
-from .trajectory_generator import TrajectoryGenerator, Dynamics, SequenceGenerator
-from flow_model import CausalFlowModel, TrajectoryDataset, train, validate
+from flow_model import CausalFlowModel, train, validate
 from flow_model.train import EarlyStopping
 
+from .trajectory_generator import SequenceGenerator
 from .ode_experiment import ODEExperiment, instantiate_model
+from .data import whiten_targets, TrajectoryDataGenerator
 
 import time
-
-import numpy as np
-from scipy.linalg import sqrtm, inv
-
-
-def simulate(dynamics: Dynamics, control_generator: SequenceGenerator,
-             control_delta, n_trajectories, n_samples, time_horizon, split):
-    if split[0] + split[1] >= 100:
-        raise Exception("Invalid data split.")
-
-    trajectory_generator = TrajectoryGenerator(
-        dynamics,
-        control_delta=control_delta,
-        control_generator=control_generator)
-
-    n_val_t = int(n_trajectories * (split[0] / 100.))
-    n_test_t = int(n_trajectories * (split[1] / 100.))
-    n_train_t = n_trajectories - n_val_t - n_test_t
-    n_trajectories = (n_train_t, n_val_t, n_test_t)
-
-    return (TrajectoryDataset(trajectory_generator,
-                              n_trajectories=n,
-                              n_samples=n_samples,
-                              time_horizon=time_horizon)
-            for n in n_trajectories)
-
-
-def whiten_targets(data: TrajectoryDataset, mean=None, std=None):
-    if mean is None:
-        mean = data.state.mean(axis=0)
-
-    if std is None:
-        std = sqrtm(np.cov(data.state.T))
-
-    istd = inv(std)
-
-    data.state[:] = ((data.state - mean) @ istd).type(
-        torch.get_default_dtype())
-
-    data.init_state[:] = ((data.init_state - mean) @ istd).type(
-        torch.get_default_dtype())
-
-    return mean, std
-
-
-def preprocess(train_data, val_data, test_data, batch_size, split, noise_std,
-               noise_seed):
-    rng = np.random.default_rng(seed=noise_seed)
-    for data in (train_data, val_data, test_data):
-        traj_noise = rng.normal(loc=0.0,
-                                scale=noise_std,
-                                size=(len(data), data.state_dim))
-
-        init_state_noise = rng.normal(loc=0.0,
-                                      scale=noise_std,
-                                      size=(len(data), data.state_dim))
-
-        data.state[:] += traj_noise
-        data.init_state[:] += init_state_noise
-
-    train_mean, train_std = whiten_targets(train_data)
-    whiten_targets(val_data, train_mean, train_std)
-    whiten_targets(test_data, train_mean, train_std)
-
-    train_dl = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=False)
-    test_dl = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-
-    return train_dl, val_dl, test_dl, train_mean, train_std
 
 
 def training_loop(experiment, model, loss_fn, optimizer, sched, early_stop,
@@ -130,42 +61,37 @@ def run_experiment(args,
                    load_data=False):
 
     if load_data:
-        train_data, val_data, test_data = torch.load(args.load_data)
+        data = torch.load(args.load_data)
+        data_generator: TrajectoryDataGenerator = data.generator
 
     else:
-        train_data, val_data, test_data = simulate(
+        data_generator = TrajectoryDataGenerator(
             dynamics,
             control_generator,
             control_delta=args.control_delta,
+            noise_std=args.noise_std,
             n_trajectories=args.n_trajectories,
             n_samples=args.n_samples,
             time_horizon=args.time_horizon,
             split=args.data_split)
 
+        data = data_generator.generate()
+
     if args.save_data:
-        torch.save((train_data, val_data, test_data),
-                   f'outputs/{args.save_data}')
+        torch.save(data, f'outputs/{args.save_data}')
 
-    train_dl, val_dl, test_dl, norm_center, norm_weight = preprocess(
-        train_data,
-        val_data,
-        test_data,
-        batch_size=args.batch_size,
-        split=args.data_split,
-        noise_std=args.noise_std,
-        noise_seed=args.noise_seed)
+    train_mean, train_std, train_istd = whiten_targets(data)
 
-    model: CausalFlowModel = instantiate_model(args, train_data.state_dim,
-                                               train_data.control_dim)
+    experiment = ODEExperiment(args,
+                               data_generator,
+                               (train_mean, train_std, train_istd),
+                               save_root=args.write_dir)
+
+    model: CausalFlowModel = instantiate_model(
+        args, *data_generator.trajectory_generator._dyn.dims())
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-
-    experiment = ODEExperiment(args,
-                               train_data,
-                               train_data_mean=norm_center,
-                               train_data_std=norm_weight,
-                               save_root=args.write_dir)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -185,9 +111,7 @@ def run_experiment(args,
                                optimizer,
                                sched,
                                early_stop,
-                               train_dl,
-                               val_dl,
-                               test_dl,
+                               *data.get_loaders(args.batch_size),
                                device,
                                max_epochs=args.n_epochs)
 

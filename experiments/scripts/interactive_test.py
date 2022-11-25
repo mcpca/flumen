@@ -52,7 +52,8 @@ def main():
 
     model.eval()
 
-    trajectory_generator: TrajectoryGenerator = experiment.generator
+    trajectory_generator: TrajectoryGenerator = experiment.generator.trajectory_generator
+    trajectory_generator._noise_std = 0.
     delta = trajectory_generator._delta
 
     with torch.no_grad():
@@ -60,7 +61,7 @@ def main():
             fig, ax = plt.subplots()
 
             x0, t, y, u = trajectory_generator.get_example(
-                time_horizon=2 * experiment.data_time_horizon, n_samples=1000)
+                time_horizon=2 * experiment.generator.time_horizon, n_samples=1000)
 
             x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
 

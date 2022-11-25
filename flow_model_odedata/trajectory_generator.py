@@ -57,6 +57,7 @@ class TrajectoryGenerator:
                  dynamics: Dynamics,
                  control_delta,
                  control_generator: SequenceGenerator,
+                 noise_std,
                  method='RK45'):
         self._n = dynamics.n
         self._ode_method = method
@@ -64,6 +65,8 @@ class TrajectoryGenerator:
         self._rng = np.random.default_rng()
         self._delta = control_delta  # control sampling time
         self._seq_gen = control_generator
+
+        self._noise_std = noise_std
 
         self._init_time = 0.
 
@@ -95,6 +98,7 @@ class TrajectoryGenerator:
         )
 
         y = traj.y.T
+        y += self._rng.normal(loc=0.0, scale=self._noise_std, size=y.shape)
         t = traj.t.reshape(-1, 1)
 
         return y0, t, y, control_seq

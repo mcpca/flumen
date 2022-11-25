@@ -8,8 +8,6 @@ from inspect import cleandoc
 from shlex import quote
 from copy import deepcopy
 
-from scipy.linalg import inv
-
 from flow_model import CausalFlowModel
 
 
@@ -38,23 +36,17 @@ def instantiate_model(args, state_dim, control_dim):
 
 class ODEExperiment:
 
-    def __init__(self, args, data, train_data_mean, train_data_std, save_root):
+    def __init__(self, args, generator, train_stats, save_root):
         self.model = None
 
         self.train_id = uuid4()
 
-        self.cmd = ' '.join((quote(arg) for arg in sys.argv))
+        self.command_line = sys.argv.copy()
         self.args = args
 
-        self.generator = data.generator
-        self.data_time_horizon = data.time_horizon
-        self.data_n_traj = data.n_trajectories
-        self.data_n_samples = data.n_samples
+        self.generator = generator
 
-        self.td_mean = train_data_mean
-        self.td_std = train_data_std
-        self.td_std_inv = inv(train_data_std)
-
+        self.td_mean, self.td_std, self.td_std_inv = train_stats
         self.save_timestamp = None
 
         try:
@@ -109,7 +101,8 @@ class ODEExperiment:
         self.model_state = deepcopy(model.state_dict())
 
     def load_model(self, device='cpu'):
-        model = instantiate_model(self.args, *self.generator._dyn.dims())
+        model = instantiate_model(
+            self.args, *self.generator.trajectory_generator._dyn.dims())
         model.load_state_dict(self.model_state)
 
         return model
@@ -143,7 +136,7 @@ class ODEExperiment:
             --- Trained model   {self.file_name}
                 Timestamp:      {timestamp_str(self.save_timestamp)}
                 Git hash:       {self.git_head + ' (' + self.git_status + ')' if self.git_head else 'N/A'}
-                Command line:   {self.cmd}
+                Command line:   {' '.join((quote(arg) for arg in self.command_line))}
                 Data:           {self.data_path if self.data_path else 'N/A'}
                 Train time:     {self.train_time:.2f}
                 Loss:           tr={self.train_loss_best:.3e} // vl={self.val_loss_best:.3e} // ts={self.test_loss_best:.3e}
