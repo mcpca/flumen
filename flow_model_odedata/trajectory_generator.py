@@ -42,6 +42,23 @@ class Dynamics:
         return (self.n, self.m)
 
 
+class InitialStateGenerator:
+    def __init__(self, rng: np.random.Generator = None):
+        self._rng = rng if rng else np.random.default_rng()
+
+    def sample(self):
+        return self._sample_impl()
+
+
+class GaussianInitialState(InitialStateGenerator):
+    def __init__(self, n, rng: np.random.Generator = None):
+        self.rng = rng if rng else np.random.default_rng()
+        self.n = n
+
+    def _sample_impl(self):
+        return self.rng.standard_normal(size=self.n)
+
+
 class SequenceGenerator:
 
     def __init__(self, rng: np.random.Generator = None):
@@ -58,20 +75,26 @@ class TrajectoryGenerator:
                  control_delta,
                  control_generator: SequenceGenerator,
                  noise_std,
+                 initial_state_generator: InitialStateGenerator = None,
                  method='RK45'):
         self._n = dynamics.n
         self._ode_method = method
         self._dyn = dynamics
-        self._rng = np.random.default_rng()
         self._delta = control_delta  # control sampling time
         self._seq_gen = control_generator
 
+        self.state_generator = (
+                initial_state_generator if initial_state_generator
+                else GaussianInitialState(self._n)
+        )
+
+        self._rng = np.random.default_rng()
         self._noise_std = noise_std
 
         self._init_time = 0.
 
     def get_example(self, time_horizon, n_samples):
-        y0 = self._rng.standard_normal(size=self._n)
+        y0 = self.state_generator.sample()
 
         control_seq = self._seq_gen.sample(time_range=(self._init_time,
                                                        time_horizon),

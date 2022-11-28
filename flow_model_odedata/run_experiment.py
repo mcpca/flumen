@@ -58,7 +58,8 @@ def training_loop(experiment, model, loss_fn, optimizer, sched, early_stop,
 def run_experiment(args,
                    dynamics=None,
                    control_generator: SequenceGenerator = None,
-                   load_data=False):
+                   load_data=False,
+                   initial_state_generator=None):
 
     if load_data:
         data = torch.load(args.load_data)
@@ -73,7 +74,8 @@ def run_experiment(args,
             n_trajectories=args.n_trajectories,
             n_samples=args.n_samples,
             time_horizon=args.time_horizon,
-            split=args.data_split)
+            split=args.data_split,
+            initial_state_generator=initial_state_generator)
 
         data = data_generator.generate()
 
