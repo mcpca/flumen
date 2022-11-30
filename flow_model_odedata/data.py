@@ -2,7 +2,7 @@ import torch
 
 from torch.utils.data import DataLoader
 
-from flow_model import TrajectoryDataset
+from flow_model import RawTrajectoryDataset, TrajectoryDataset
 from .trajectory_generator import TrajectoryGenerator, Dynamics, SequenceGenerator
 
 import numpy as np
@@ -54,10 +54,10 @@ class TrajectoryDataGenerator:
 
     def _generate_raw(self):
         return tuple(
-            TrajectoryDataset(self.trajectory_generator,
-                              n_trajectories=n,
-                              n_samples=self.n_samples,
-                              time_horizon=self.time_horizon)
+            RawTrajectoryDataset.generate(self.trajectory_generator,
+                                          n_trajectories=n,
+                                          n_samples=self.n_samples,
+                                          time_horizon=self.time_horizon)
             for n in self.n_trajectories)
 
 
@@ -65,13 +65,9 @@ class TrajectoryDataWrapper:
 
     def __init__(self, generator):
         self.generator = generator
-        self.data = generator._generate_raw()
+        self.train_data, self.val_data, self.test_data = generator._generate_raw()
 
-    def get_loaders(self, batch_size):
-        shuffle = (True, False, False)
-
-        return (DataLoader(d, batch_size=batch_size, shuffle=s)
-                for (d, s) in zip(self.data, shuffle))
-
-    def __getitem__(self, key):
-        return self.data[key]
+    def preprocess(self):
+        return (TrajectoryDataset(self.train_data),
+                TrajectoryDataset(self.val_data),
+                TrajectoryDataset(self.test_data))

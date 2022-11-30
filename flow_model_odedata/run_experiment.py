@@ -2,6 +2,8 @@ import torch
 
 torch.set_default_dtype(torch.float32)
 
+from torch.utils.data import DataLoader
+
 from flow_model import CausalFlowModel, train, validate
 from flow_model.train import EarlyStopping
 
@@ -82,15 +84,17 @@ def run_experiment(args,
     if args.save_data:
         torch.save(data, f'outputs/{args.save_data}')
 
-    train_mean, train_std, train_istd = whiten_targets(data)
+    train_data, val_data, test_data = data.preprocess()
+    train_mean, train_std, train_istd = whiten_targets(
+        (train_data, val_data, test_data))
 
     experiment = ODEExperiment(args,
                                data_generator,
                                (train_mean, train_std, train_istd),
                                save_root=args.write_dir)
 
-    model: CausalFlowModel = instantiate_model(
-        args, *data_generator.trajectory_generator._dyn.dims())
+    model: CausalFlowModel = instantiate_model(args, train_data.state_dim,
+                                               train_data.control_dim)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -107,13 +111,19 @@ def run_experiment(args,
     early_stop = EarlyStopping(es_patience=args.es_patience,
                                es_delta=args.es_delta)
 
+    train_dl = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+    val_dl = DataLoader(val_data, batch_size=args.batch_size, shuffle=True)
+    test_dl = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
+
     train_time = training_loop(experiment,
                                model,
                                mse_loss,
                                optimizer,
                                sched,
                                early_stop,
-                               *data.get_loaders(args.batch_size),
+                               train_dl,
+                               val_dl,
+                               test_dl,
                                device,
                                max_epochs=args.n_epochs)
 

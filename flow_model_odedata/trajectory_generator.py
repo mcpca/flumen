@@ -93,6 +93,9 @@ class TrajectoryGenerator:
 
         self._init_time = 0.
 
+    def dims(self):
+        return self._dyn.dims()
+
     def get_example(self, time_horizon, n_samples):
         y0 = self.state_generator.sample()
 
