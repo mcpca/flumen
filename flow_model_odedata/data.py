@@ -1,7 +1,5 @@
 import torch
 
-from torch.utils.data import DataLoader
-
 from flow_model import RawTrajectoryDataset, TrajectoryDataset
 from .trajectory_generator import TrajectoryGenerator, Dynamics, SequenceGenerator
 
@@ -65,7 +63,8 @@ class TrajectoryDataWrapper:
 
     def __init__(self, generator):
         self.generator = generator
-        self.train_data, self.val_data, self.test_data = generator._generate_raw()
+        (self.train_data, self.val_data,
+         self.test_data) = generator._generate_raw()
 
     def preprocess(self):
         return (TrajectoryDataset(self.train_data),

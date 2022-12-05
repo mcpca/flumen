@@ -68,11 +68,6 @@ class ODEExperiment:
             self.save_path = None
             self.file_name = None
 
-        if args.load_data:
-            self.data_path = os.path.abspath(args.load_data)
-        else:
-            self.data_path = None
-
         self.n_epochs = 0
         self.train_loss = []
         self.val_loss = []
@@ -137,7 +132,6 @@ class ODEExperiment:
                 Timestamp:      {timestamp_str(self.save_timestamp)}
                 Git hash:       {self.git_head + ' (' + self.git_status + ')' if self.git_head else 'N/A'}
                 Command line:   {' '.join((quote(arg) for arg in self.command_line))}
-                Data:           {self.data_path if self.data_path else 'N/A'}
                 Train time:     {self.train_time:.2f}
                 Loss:           tr={self.train_loss_best:.3e} // vl={self.val_loss_best:.3e} // ts={self.test_loss_best:.3e}
         ''')

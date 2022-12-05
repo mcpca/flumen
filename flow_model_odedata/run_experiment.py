@@ -7,10 +7,10 @@ from torch.utils.data import DataLoader
 from flow_model import CausalFlowModel, train, validate
 from flow_model.train import EarlyStopping
 
-from .trajectory_generator import SequenceGenerator
 from .ode_experiment import ODEExperiment, instantiate_model
-from .data import whiten_targets, TrajectoryDataGenerator
+from .data import TrajectoryDataWrapper, TrajectoryDataGenerator, whiten_targets
 
+from argparse import ArgumentParser, ArgumentTypeError
 import time
 
 
@@ -57,32 +57,8 @@ def training_loop(experiment, model, loss_fn, optimizer, sched, early_stop,
     return train_time
 
 
-def run_experiment(args,
-                   dynamics=None,
-                   control_generator: SequenceGenerator = None,
-                   load_data=False,
-                   initial_state_generator=None):
-
-    if load_data:
-        data = torch.load(args.load_data)
-        data_generator: TrajectoryDataGenerator = data.generator
-
-    else:
-        data_generator = TrajectoryDataGenerator(
-            dynamics,
-            control_generator,
-            control_delta=args.control_delta,
-            noise_std=args.noise_std,
-            n_trajectories=args.n_trajectories,
-            n_samples=args.n_samples,
-            time_horizon=args.time_horizon,
-            split=args.data_split,
-            initial_state_generator=initial_state_generator)
-
-        data = data_generator.generate()
-
-    if args.save_data:
-        torch.save(data, f'outputs/{args.save_data}')
+def prepare_experiment(data: TrajectoryDataWrapper, args):
+    data_generator: TrajectoryDataGenerator = data.generator
 
     train_data, val_data, test_data = data.preprocess()
     train_mean, train_std, train_istd = whiten_targets(
@@ -115,16 +91,134 @@ def run_experiment(args,
     val_dl = DataLoader(val_data, batch_size=args.batch_size, shuffle=True)
     test_dl = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 
-    train_time = training_loop(experiment,
-                               model,
-                               mse_loss,
-                               optimizer,
-                               sched,
-                               early_stop,
-                               train_dl,
-                               val_dl,
-                               test_dl,
-                               device,
-                               max_epochs=args.n_epochs)
+    return (experiment, model, mse_loss, optimizer, sched, early_stop,
+            train_dl, val_dl, test_dl, device, args.n_epochs)
 
-    print(f"Training took {train_time:.2f} seconds.")
+
+def print_gpu_info():
+    if torch.cuda.is_available():
+        n_gpus = torch.cuda.device_count()
+        print(f"CUDA is available, {n_gpus} devices can be used.")
+        current_dev = torch.cuda.current_device()
+
+        for id in range(n_gpus):
+            msg = f"Device {id}: {torch.cuda.get_device_name(id)}"
+
+            if id == current_dev:
+                msg += " [Current]"
+
+            print(msg)
+
+
+def get_arg_parser():
+    ap = ArgumentParser()
+
+    ap.add_argument('--control_rnn_size',
+                    type=positive_int,
+                    help="Size of the RNN hidden state",
+                    default=6)
+
+    ap.add_argument('--control_rnn_depth',
+                    type=positive_int,
+                    help="Depth of the RNN",
+                    default=1)
+
+    ap.add_argument('--encoder_size',
+                    type=positive_int,
+                    help="Size (multiplier) of the encoder layers",
+                    default=5)
+
+    ap.add_argument('--encoder_depth',
+                    type=positive_int,
+                    help="Depth of the encoder",
+                    default=3)
+
+    ap.add_argument('--decoder_size',
+                    type=positive_int,
+                    help="Size (multiplier) of the decoder layers",
+                    default=5)
+
+    ap.add_argument('--decoder_depth',
+                    type=positive_int,
+                    help="Depth of the decoder",
+                    default=3)
+
+    ap.add_argument('--batch_size',
+                    type=positive_int,
+                    help="Batch size for training and validation",
+                    default=256)
+
+    ap.add_argument('--lr',
+                    type=positive_float,
+                    help="Initial learning rate",
+                    default=1e-3)
+
+    ap.add_argument('--n_epochs',
+                    type=positive_int,
+                    help="Max number of epochs",
+                    default=10000)
+
+    ap.add_argument('--es_patience',
+                    type=positive_int,
+                    help="Early stopping -- patience (epochs)",
+                    default=30)
+
+    ap.add_argument('--es_delta',
+                    type=nonnegative_float,
+                    help="Early stopping -- minimum loss change",
+                    default=0.)
+
+    ap.add_argument('--sched_patience',
+                    type=positive_int,
+                    help="LR Scheduler -- Patience epochs",
+                    default=10)
+
+    ap.add_argument('--sched_cooldown',
+                    type=positive_int,
+                    help="LR scheduler -- Cooldown epochs",
+                    default=2)
+
+    ap.add_argument('--sched_factor',
+                    type=positive_int,
+                    help="LR Scheduler -- Reduction factor",
+                    default=5)
+
+    ap.add_argument('--experiment_id',
+                    type=str,
+                    help="Human-readable experiment identifier. "
+                    "Nothing is written to disk if this is not provided.",
+                    default=None)
+
+    ap.add_argument('--write_dir',
+                    type=str,
+                    help="Directory to which the model will be written.",
+                    default='./outputs')
+
+    return ap
+
+
+def positive_int(value):
+    value = int(value)
+
+    if value <= 0:
+        raise ArgumentTypeError(f"{value} is not a positive integer")
+
+    return value
+
+
+def positive_float(value):
+    value = float(value)
+
+    if value <= 0:
+        raise ArgumentTypeError(f"{value} is not a positive float")
+
+    return value
+
+
+def nonnegative_float(value):
+    value = float(value)
+
+    if value < 0:
+        raise ArgumentTypeError(f"{value} is not a nonnegative float")
+
+    return value
