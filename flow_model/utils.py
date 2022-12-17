@@ -1,98 +1,6 @@
 import torch
-
-torch.set_default_dtype(torch.float32)
-
-from torch.utils.data import DataLoader
-
-from flow_model import CausalFlowModel, train, validate
-from flow_model.train import EarlyStopping
-
-from .ode_experiment import ODEExperiment, instantiate_model
-from .data import TrajectoryDataWrapper, TrajectoryDataGenerator, whiten_targets
-
+import numpy as np
 from argparse import ArgumentParser, ArgumentTypeError
-import time
-
-
-def training_loop(experiment, model, loss_fn, optimizer, sched, early_stop,
-                  train_dl, val_dl, test_dl, device, max_epochs):
-    header_msg = f"{'Epoch':>5} :: {'Loss (Train)':>16} :: " \
-            f"{'Loss (Val)':>16} :: {'Loss (Test)':>16} :: {'Best (Val)':>16}"
-
-    print(header_msg)
-    print('=' * len(header_msg))
-
-    start = time.time()
-
-    for epoch in range(max_epochs):
-        model.train()
-        for example in train_dl:
-            train(example, loss_fn, model, optimizer, device)
-
-        model.eval()
-        train_loss = validate(train_dl, loss_fn, model, device)
-        val_loss = validate(val_dl, loss_fn, model, device)
-        test_loss = validate(test_dl, loss_fn, model, device)
-
-        sched.step(val_loss)
-        early_stop.step(val_loss)
-
-        print(
-            f"{epoch + 1:>5d} :: {train_loss:>16e} :: {val_loss:>16e} :: " \
-            f"{test_loss:>16e} :: {early_stop.best_val_loss:>16e}"
-        )
-
-        if early_stop.best_model:
-            experiment.save_model(model)
-
-        experiment.register_progress(train_loss, val_loss, test_loss,
-                                     early_stop.best_model)
-
-        if early_stop.early_stop:
-            break
-
-    train_time = time.time() - start
-    experiment.save(train_time)
-
-    return train_time
-
-
-def prepare_experiment(data: TrajectoryDataWrapper, args):
-    data_generator: TrajectoryDataGenerator = data.generator
-
-    train_data, val_data, test_data = data.preprocess()
-    train_mean, train_std, train_istd = whiten_targets(
-        (train_data, val_data, test_data))
-
-    experiment = ODEExperiment(args,
-                               data_generator,
-                               (train_mean, train_std, train_istd),
-                               save_root=args.write_dir)
-
-    model: CausalFlowModel = instantiate_model(args, train_data.state_dim,
-                                               train_data.control_dim)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        patience=args.sched_patience,
-        cooldown=args.sched_cooldown,
-        factor=1. / args.sched_factor)
-
-    mse_loss = torch.nn.MSELoss().to(device)
-
-    early_stop = EarlyStopping(es_patience=args.es_patience,
-                               es_delta=args.es_delta)
-
-    train_dl = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
-    val_dl = DataLoader(val_data, batch_size=args.batch_size, shuffle=True)
-    test_dl = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
-
-    return (experiment, model, mse_loss, optimizer, sched, early_stop,
-            train_dl, val_dl, test_dl, device, args.n_epochs)
 
 
 def print_gpu_info():
@@ -222,3 +130,28 @@ def nonnegative_float(value):
         raise ArgumentTypeError(f"{value} is not a nonnegative float")
 
     return value
+
+
+def pack_model_inputs(x0, t, u, delta):
+    t = torch.Tensor(t.reshape((-1, 1))).flip(0)
+    x0 = torch.Tensor(x0.reshape((1, -1))).repeat(t.shape[0], 1)
+    rnn_inputs = torch.empty((t.shape[0], u.size, 2))
+    lengths = torch.empty((t.shape[0], ), dtype=torch.long)
+
+    for idx, (t_, u_) in enumerate(zip(t, rnn_inputs)):
+        control_seq = torch.from_numpy(u)
+        deltas = torch.ones_like(control_seq)
+
+        seq_len = 1 + int(np.floor(t_ / delta))
+        lengths[idx] = seq_len
+        deltas[seq_len - 1] = ((t_ - delta * (seq_len - 1)) / delta).item()
+        deltas[seq_len:] = 0.
+
+        u_[:] = torch.hstack((control_seq, deltas))
+
+    u_packed = torch.nn.utils.rnn.pack_padded_sequence(rnn_inputs,
+                                                       lengths,
+                                                       batch_first=True,
+                                                       enforce_sorted=True)
+
+    return x0, t, u_packed

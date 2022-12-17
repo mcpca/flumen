@@ -1,7 +1,7 @@
-from flow_model_odedata import run_experiment
-from flow_model_odedata.utils import parse_args, print_gpu_info
 from dynamics import Pendulum
 from sequence_generators import SinusoidalSequence
+
+from generate_data import parse_args, generate
 
 
 def main():
@@ -10,9 +10,8 @@ def main():
     dynamics = Pendulum(damping=0.01)
     control_generator = SinusoidalSequence()
 
-    run_experiment(args, dynamics, control_generator)
+    generate(args, dynamics, control_generator)
 
 
 if __name__ == '__main__':
-    print_gpu_info()
     main()

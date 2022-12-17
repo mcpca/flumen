@@ -1,5 +1,13 @@
-from flow_model_odedata.trajectory_generator import SequenceGenerator
 import numpy as np
+
+
+class SequenceGenerator:
+
+    def __init__(self, rng: np.random.Generator = None):
+        self._rng = rng if rng else np.random.default_rng()
+
+    def sample(self, time_range, delta):
+        return self._sample_impl(time_range, delta)
 
 
 class GaussianSequence(SequenceGenerator):
@@ -106,5 +114,5 @@ class SinusoidalSequence(SequenceGenerator):
                              np.floor((time_range[1] - time_range[0]) / delta))
         time = np.linspace(time_range[0], time_range[1], n_control_vals)
 
-        return (amplitude *
-                np.sin(2 * np.pi * frequency * time)).reshape((-1, 1))
+        return (amplitude * np.sin(2 * np.pi * frequency * time)).reshape(
+            (-1, 1))

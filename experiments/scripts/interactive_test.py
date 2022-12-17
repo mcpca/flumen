@@ -3,7 +3,8 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import torch
-from flow_model_odedata import ODEExperiment, TrajectoryGenerator, pack_model_inputs
+from flow_model import Experiment, pack_model_inputs
+from trajectory_sampler import TrajectorySampler
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -23,8 +24,8 @@ def parse_args():
 def main():
     args = parse_args()
 
-    experiment: ODEExperiment = torch.load(args.path,
-                                           map_location=torch.device('cpu'))
+    experiment: Experiment = torch.load(args.path,
+                                        map_location=torch.device('cpu'))
 
     print(experiment)
 
@@ -52,7 +53,7 @@ def main():
 
     model.eval()
 
-    trajectory_generator: TrajectoryGenerator = experiment.generator.trajectory_generator
+    trajectory_generator: TrajectorySampler = experiment.generator.sampler
     trajectory_generator._noise_std = 0.
     delta = trajectory_generator._delta
 
@@ -61,7 +62,8 @@ def main():
             fig, ax = plt.subplots()
 
             x0, t, y, u = trajectory_generator.get_example(
-                time_horizon=2 * experiment.generator.time_horizon, n_samples=1000)
+                time_horizon=2 * experiment.generator.time_horizon,
+                n_samples=1000)
 
             x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
 

@@ -8,7 +8,7 @@ from inspect import cleandoc
 from shlex import quote
 from copy import deepcopy
 
-from flow_model import CausalFlowModel
+from .model import CausalFlowModel
 
 
 def timestamp_str(timestamp):
@@ -34,9 +34,9 @@ def instantiate_model(args, state_dim, control_dim):
                            decoder_depth=args.decoder_depth)
 
 
-class ODEExperiment:
+class Experiment:
 
-    def __init__(self, args, generator, train_stats, save_root):
+    def __init__(self, args, dims, train_stats, save_root):
         self.model = None
 
         self.train_id = uuid4()
@@ -44,9 +44,10 @@ class ODEExperiment:
         self.command_line = sys.argv.copy()
         self.args = args
 
-        self.generator = generator
-
         self.td_mean, self.td_std, self.td_std_inv = train_stats
+
+        self.dims = dims
+
         self.save_timestamp = None
 
         try:
@@ -96,8 +97,7 @@ class ODEExperiment:
         self.model_state = deepcopy(model.state_dict())
 
     def load_model(self, device='cpu'):
-        model = instantiate_model(
-            self.args, *self.generator.trajectory_generator._dyn.dims())
+        model = instantiate_model(self.args, *self.dims)
         model.load_state_dict(self.model_state)
 
         return model
