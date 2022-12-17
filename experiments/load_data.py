@@ -1,7 +1,9 @@
-from torch import load
-from flow_model_odedata import (prepare_experiment, print_gpu_info,
-                                get_arg_parser, training_loop)
+import torch
 
+torch.set_default_dtype(torch.float32)
+
+from flow_model import (prepare_experiment, get_arg_parser, train)
+from flow_model.run import print_gpu_info
 
 def main():
     ap = get_arg_parser()
@@ -12,11 +14,11 @@ def main():
 
     args = ap.parse_args()
 
-    data = load(args.load_path)
+    data = torch.load(args.load_path)
 
     train_args = prepare_experiment(data, args)
 
-    train_time = training_loop(*train_args)
+    train_time = train(*train_args)
     print(f"Training took {train_time:.2f} seconds.")
 
 

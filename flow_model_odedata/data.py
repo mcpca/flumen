@@ -1,23 +1,5 @@
-import torch
-
 from flow_model import RawTrajectoryDataset, TrajectoryDataset
 from .trajectory_generator import TrajectoryGenerator, Dynamics, SequenceGenerator
-
-import numpy as np
-from scipy.linalg import sqrtm, inv
-
-
-def whiten_targets(data):
-    mean = data[0].state.mean(axis=0)
-    std = sqrtm(np.cov(data[0].state.T))
-    istd = inv(std)
-
-    for d in data:
-        d.state[:] = ((d.state - mean) @ istd).type(torch.get_default_dtype())
-        d.init_state[:] = ((d.init_state - mean) @ istd).type(
-            torch.get_default_dtype())
-
-    return mean, std, istd
 
 
 class TrajectoryDataGenerator:
@@ -35,6 +17,8 @@ class TrajectoryDataGenerator:
         self.time_horizon = time_horizon
 
         self.trajectory_generator = TrajectoryGenerator(
+            time_horizon,
+            n_samples,
             dynamics,
             control_delta=control_delta,
             control_generator=control_generator,
@@ -53,9 +37,7 @@ class TrajectoryDataGenerator:
     def _generate_raw(self):
         return tuple(
             RawTrajectoryDataset.generate(self.trajectory_generator,
-                                          n_trajectories=n,
-                                          n_samples=self.n_samples,
-                                          time_horizon=self.time_horizon)
+                                          n_trajectories=n)
             for n in self.n_trajectories)
 
 
@@ -65,6 +47,9 @@ class TrajectoryDataWrapper:
         self.generator = generator
         (self.train_data, self.val_data,
          self.test_data) = generator._generate_raw()
+
+    def dims(self):
+        return (self.train_data.state_dim, self.train_data.control_dim)
 
     def preprocess(self):
         return (TrajectoryDataset(self.train_data),

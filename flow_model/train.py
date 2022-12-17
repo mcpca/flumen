@@ -1,4 +1,6 @@
 import torch
+import time
+from .experiment import Experiment
 
 
 def validate(data, loss_fn, model, device):
@@ -30,7 +32,7 @@ def validate(data, loss_fn, model, device):
     return vl / len(data)
 
 
-def train(example, loss_fn, model, optimizer, device):
+def train_step(example, loss_fn, model, optimizer, device):
     x0, t, y, u, lengths = example
 
     sort_idxs = torch.argsort(lengths, descending=True)
@@ -85,3 +87,47 @@ class EarlyStopping:
 
         if self.counter >= self.patience:
             self.early_stop = True
+
+
+def train(experiment: Experiment, model, loss_fn, optimizer, sched,
+          early_stop: EarlyStopping, train_dl, val_dl, test_dl, device,
+          max_epochs):
+    header_msg = f"{'Epoch':>5} :: {'Loss (Train)':>16} :: " \
+        f"{'Loss (Val)':>16} :: {'Loss (Test)':>16} :: {'Best (Val)':>16}"
+
+    print(header_msg)
+    print('=' * len(header_msg))
+
+    start = time.time()
+
+    for epoch in range(max_epochs):
+        model.train()
+        for example in train_dl:
+            train_step(example, loss_fn, model, optimizer, device)
+
+        model.eval()
+        train_loss = validate(train_dl, loss_fn, model, device)
+        val_loss = validate(val_dl, loss_fn, model, device)
+        test_loss = validate(test_dl, loss_fn, model, device)
+
+        sched.step(val_loss)
+        early_stop.step(val_loss)
+
+        print(
+            f"{epoch + 1:>5d} :: {train_loss:>16e} :: {val_loss:>16e} :: " \
+            f"{test_loss:>16e} :: {early_stop.best_val_loss:>16e}"
+        )
+
+        if early_stop.best_model:
+            experiment.save_model(model)
+
+        experiment.register_progress(train_loss, val_loss, test_loss,
+                                     early_stop.best_model)
+
+        if early_stop.early_stop:
+            break
+
+    train_time = time.time() - start
+    experiment.save(train_time)
+
+    return train_time

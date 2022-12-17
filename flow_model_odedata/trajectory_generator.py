@@ -43,6 +43,7 @@ class Dynamics:
 
 
 class InitialStateGenerator:
+
     def __init__(self, rng: np.random.Generator = None):
         self._rng = rng if rng else np.random.default_rng()
 
@@ -51,6 +52,7 @@ class InitialStateGenerator:
 
 
 class GaussianInitialState(InitialStateGenerator):
+
     def __init__(self, n, rng: np.random.Generator = None):
         self.rng = rng if rng else np.random.default_rng()
         self.n = n
@@ -71,6 +73,8 @@ class SequenceGenerator:
 class TrajectoryGenerator:
 
     def __init__(self,
+                 time_horizon,
+                 n_samples,
                  dynamics: Dynamics,
                  control_delta,
                  control_generator: SequenceGenerator,
@@ -83,10 +87,12 @@ class TrajectoryGenerator:
         self._delta = control_delta  # control sampling time
         self._seq_gen = control_generator
 
-        self.state_generator = (
-                initial_state_generator if initial_state_generator
-                else GaussianInitialState(self._n)
-        )
+        self.time_horizon = time_horizon
+        self.n_samples = n_samples
+
+        self.state_generator = (initial_state_generator
+                                if initial_state_generator else
+                                GaussianInitialState(self._n))
 
         self._rng = np.random.default_rng()
         self._noise_std = noise_std
@@ -96,11 +102,11 @@ class TrajectoryGenerator:
     def dims(self):
         return self._dyn.dims()
 
-    def get_example(self, time_horizon, n_samples):
+    def get_example(self):
         y0 = self.state_generator.sample()
 
         control_seq = self._seq_gen.sample(time_range=(self._init_time,
-                                                       time_horizon),
+                                                       self.time_horizon),
                                            delta=self._delta)
 
         def f(t, y):
@@ -109,14 +115,14 @@ class TrajectoryGenerator:
 
             return self._dyn(y, u)
 
-        t_samples = self._init_time + (time_horizon - self._init_time) * lhs(
-            1, n_samples).ravel()
+        t_samples = self._init_time + (self.time_horizon - self._init_time
+                                       ) * lhs(1, self.n_samples).ravel()
         t_samples = np.append(t_samples, [self._init_time])
         t_samples = np.sort(t_samples)
 
         traj = solve_ivp(
             f,
-            (self._init_time, time_horizon),
+            (self._init_time, self.time_horizon),
             y0,
             t_eval=t_samples,
             method=self._ode_method,
