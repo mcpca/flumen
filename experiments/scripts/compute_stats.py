@@ -12,8 +12,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 from scipy.stats import sem
 
-from flow_model import CausalFlowModel, TrajectoryDataset
-from flow_model_odedata import ODEExperiment
+from flow_model import CausalFlowModel, TrajectoryDataset, Experiment
 
 
 def parse_args():
@@ -66,7 +65,7 @@ def main():
                 continue
 
             load_path = os.path.join(dir, fname)
-            experiment: ODEExperiment = torch.load(
+            experiment: Experiment = torch.load(
                 load_path, map_location=torch.device('cpu'))
 
             rows.append({'id': experiment.train_id.hex})
@@ -106,7 +105,7 @@ class TestOnData:
         self.data: TrajectoryDataset = torch.load(path)
         self.loss = torch.nn.MSELoss()
 
-    def __call__(self, experiment: ODEExperiment):
+    def __call__(self, experiment: Experiment):
         model: CausalFlowModel = experiment.load_model()
 
         data = deepcopy(self.data)
@@ -145,7 +144,7 @@ class TestError:
     def __init__(self):
         pass
 
-    def __call__(self, experiment: ODEExperiment):
+    def __call__(self, experiment: Experiment):
         return experiment.test_loss_best
 
     def __str__(self):
@@ -157,7 +156,7 @@ class ValError:
     def __init__(self):
         pass
 
-    def __call__(self, experiment: ODEExperiment):
+    def __call__(self, experiment: Experiment):
         return experiment.val_loss_best
 
     def __str__(self):
@@ -169,7 +168,7 @@ class TrainError:
     def __init__(self):
         pass
 
-    def __call__(self, experiment: ODEExperiment):
+    def __call__(self, experiment: Experiment):
         return experiment.train_loss_best
 
     def __str__(self):
@@ -181,7 +180,7 @@ class TrainTime:
     def __init__(self):
         pass
 
-    def __call__(self, experiment: ODEExperiment):
+    def __call__(self, experiment: Experiment):
         return experiment.train_time
 
     def __str__(self):
@@ -193,7 +192,7 @@ class GetParam:
     def __init__(self, param: str):
         self.param = param
 
-    def __call__(self, experiment: ODEExperiment):
+    def __call__(self, experiment: Experiment):
         return vars(experiment.args)[self.param]
 
     def __str__(self):
