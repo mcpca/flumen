@@ -36,7 +36,7 @@ class VanDerPol(Dynamics):
         p, v = x
 
         dp = v
-        dv = -p + self.damping * (1 - p**2) * v + u
+        dv = -p + self.damping * (1 - p**2) * v + u.item()
 
         return (dp, dv)
 
@@ -52,7 +52,7 @@ class FitzHughNagumo(Dynamics):
     def _dx(self, x, u):
         v, w = x
 
-        dv = 50 * (v - v**3 - w + u)
+        dv = 50 * (v - v**3 - w + u.item())
         dw = (v - self.a - self.b * w) / self.tau
 
         return (dv, dw)
@@ -69,6 +69,6 @@ class Pendulum(Dynamics):
         p, v = x
 
         dp = v
-        dv = -self.freq2 * np.sin(p) - self.damping * v + u
+        dv = -self.freq2 * np.sin(p) - self.damping * v + u.item()
 
         return (dp, dv)
