@@ -10,9 +10,9 @@ def main():
     args = parse_args()
 
     dynamics = FitzHughNagumo(tau=0.8, a=-0.3, b=1.4)
-    control_generator = LogNormalSqWave(mean=log(0.2), std=0.1, period=5)
+    control_generator = LogNormalSqWave(mean=log(0.2), std=0.5, period=40)
 
-    generat_data(args, dynamics, control_generator)
+    generate(args, dynamics, control_generator)
 
 
 if __name__ == '__main__':

@@ -107,23 +107,31 @@ class TrajectoryDataGenerator:
             control_generator=control_generator,
             initial_state_generator=initial_state_generator)
 
-        n_val_t = int(n_trajectories * (split[0] / 100.))
-        n_test_t = int(n_trajectories * (split[1] / 100.))
-        n_train_t = n_trajectories - n_val_t - n_test_t
-
-        self.n_trajectories = (n_train_t, n_val_t, n_test_t)
+        self.n_val_t = int(n_trajectories * (split[0] / 100.))
+        self.n_test_t = int(n_trajectories * (split[1] / 100.))
+        self.n_train_t = n_trajectories - self.n_val_t - self.n_test_t
 
     def generate(self):
-        return TrajectoryDataWrapper(self)
+        return ExperimentData(self)
 
     def _generate_raw(self):
-        return tuple(
-            RawTrajectoryDataset.generate(
-                self.sampler, n_trajectories=n, noise_std=self.noise_std)
-            for n in self.n_trajectories)
+        train_data = RawTrajectoryDataset.generate(
+            self.sampler,
+            n_trajectories=self.n_train_t,
+            noise_std=self.noise_std)
+
+        val_data = RawTrajectoryDataset.generate(self.sampler,
+                                                 n_trajectories=self.n_val_t,
+                                                 noise_std=self.noise_std)
+
+        test_data = RawTrajectoryDataset.generate(self.sampler,
+                                                  n_trajectories=self.n_test_t,
+                                                  noise_std=self.noise_std)
+
+        return train_data, val_data, test_data
 
 
-class TrajectoryDataWrapper:
+class ExperimentData:
 
     def __init__(self, generator):
         self.generator = generator
@@ -133,7 +141,9 @@ class TrajectoryDataWrapper:
     def dims(self):
         return (self.train_data.state_dim, self.train_data.control_dim)
 
-    def preprocess(self):
-        return (TrajectoryDataset(self.train_data),
-                TrajectoryDataset(self.val_data),
-                TrajectoryDataset(self.test_data))
+    def get_datasets(self):
+        train_ds = TrajectoryDataset(self.train_data)
+        val_ds = TrajectoryDataset(self.val_data)
+        test_ds = TrajectoryDataset(self.test_data)
+
+        return train_ds, val_ds, test_ds

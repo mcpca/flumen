@@ -24,7 +24,7 @@ def whiten_targets(data):
 
 
 def prepare_experiment(data, args):
-    train_data, val_data, test_data = data.preprocess()
+    train_data, val_data, test_data = data.get_datasets()
     train_mean, train_std, train_istd = whiten_targets(
         (train_data, val_data, test_data))
 
