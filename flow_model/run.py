@@ -11,7 +11,6 @@ from scipy.linalg import sqrtm, inv
 
 
 def whiten_targets(data):
-    print('whiten_targets')
     mean = data[0].state.mean(axis=0)
     std = sqrtm(np.cov(data[0].state.T))
     istd = inv(std)
