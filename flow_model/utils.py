@@ -91,6 +91,11 @@ def get_arg_parser():
                     help="LR Scheduler -- Reduction factor",
                     default=5)
 
+    ap.add_argument(
+        '--whiten_data',
+        action='store_true',
+        help='Apply whitening normalization to the data before training.')
+
     ap.add_argument('--experiment_id',
                     type=str,
                     help="Human-readable experiment identifier. "

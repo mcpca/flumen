@@ -11,6 +11,7 @@ from scipy.linalg import sqrtm, inv
 
 
 def whiten_targets(data):
+    print('whiten_targets')
     mean = data[0].state.mean(axis=0)
     std = sqrtm(np.cov(data[0].state.T))
     istd = inv(std)
@@ -25,8 +26,14 @@ def whiten_targets(data):
 
 def prepare_experiment(data, args):
     train_data, val_data, test_data = data.get_datasets()
-    train_mean, train_std, train_istd = whiten_targets(
-        (train_data, val_data, test_data))
+
+    if args.whiten_data:
+        train_mean, train_std, train_istd = whiten_targets(
+            (train_data, val_data, test_data))
+    else:
+        train_mean = 0.
+        train_std = np.eye(train_data.state_dim)
+        train_istd = np.eye(train_data.state_dim)
 
     experiment = Experiment(args,
                             data.dims(), (train_mean, train_std, train_istd),
