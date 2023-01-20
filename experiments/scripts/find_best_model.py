@@ -4,7 +4,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import re
 import torch
-from flow_model_odedata import ODEExperiment
+from flow_model import Experiment
 
 
 def main():
@@ -19,7 +19,7 @@ def main():
         if not file_matcher.match(fname):
             continue
         load_path = os.path.join(dir, fname)
-        experiment: ODEExperiment = torch.load(
+        experiment: Experiment = torch.load(
             load_path, map_location=torch.device('cpu'))
         val_mse[load_path] = experiment.val_loss_best
 
