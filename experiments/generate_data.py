@@ -1,4 +1,4 @@
-from torch import save
+import torch
 
 from dynamics import Dynamics
 from sequence_generators import SequenceGenerator
@@ -81,7 +81,7 @@ def generate(args,
         initial_state_generator=initial_state_generator)
 
     data = data_generator.generate()
-    save(data, f'outputs/{args.save_path}')
+    torch.save(data, f'outputs/{args.save_path}')
 
 
 class TrajectoryDataGenerator:
@@ -147,3 +147,10 @@ class ExperimentData:
         test_ds = TrajectoryDataset(self.test_data)
 
         return train_ds, val_ds, test_ds
+
+    def reset_state_noise(self, noise_std=None):
+        s = noise_std if noise_std else self.generator.noise_std
+
+        for d in (self.train_data, self.val_data, self.test_data):
+            for y_n in d.state_noise:
+                y_n[:] = torch.normal(mean=0., std=s, size=y_n.size())
