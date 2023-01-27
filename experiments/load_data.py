@@ -26,6 +26,7 @@ def main():
 
     if args.reset_noise_var:
         data.reset_state_noise(args.reset_noise_var)
+        data.generator.noise_std = args.reset_noise_var
 
     experiment, train_args = prepare_experiment(data, args)
 
