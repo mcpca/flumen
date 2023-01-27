@@ -126,7 +126,7 @@ class TrajectoryDataGenerator:
 
         test_data = RawTrajectoryDataset.generate(self.sampler,
                                                   n_trajectories=self.n_test_t,
-                                                  noise_std=self.noise_std)
+                                                  noise_std=0.)
 
         return train_data, val_data, test_data
 
@@ -151,6 +151,6 @@ class ExperimentData:
     def reset_state_noise(self, noise_std=None):
         s = noise_std if noise_std else self.generator.noise_std
 
-        for d in (self.train_data, self.val_data, self.test_data):
+        for d in (self.train_data, self.val_data):
             for y_n in d.state_noise:
                 y_n[:] = torch.normal(mean=0., std=s, size=y_n.size())
