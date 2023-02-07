@@ -34,8 +34,8 @@ class TrajectorySampler:
                  dynamics: Dynamics,
                  control_delta,
                  control_generator: SequenceGenerator,
-                 initial_state_generator: InitialStateGenerator = None,
-                 method='RK45'):
+                 method,
+                 initial_state_generator: InitialStateGenerator = None):
         self._n = dynamics.n
         self._ode_method = method
         self._dyn = dynamics
@@ -83,7 +83,6 @@ class TrajectorySampler:
             y0,
             t_eval=t_samples,
             method=self._ode_method,
-            rtol=1e-9,
         )
 
         y = traj.y.T

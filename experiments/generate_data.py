@@ -68,7 +68,8 @@ def parse_args():
 def generate(args,
              dynamics: Dynamics,
              seq_gen: SequenceGenerator,
-             initial_state_generator=None):
+             initial_state_generator=None,
+             method='RK45'):
     data_generator = TrajectoryDataGenerator(
         dynamics,
         seq_gen,
@@ -78,7 +79,8 @@ def generate(args,
         time_horizon=args.time_horizon,
         split=args.data_split,
         noise_std=args.noise_std,
-        initial_state_generator=initial_state_generator)
+        initial_state_generator=initial_state_generator,
+        method=method)
 
     data = data_generator.generate()
     torch.save(data, f'outputs/{args.save_path}')
@@ -88,8 +90,8 @@ class TrajectoryDataGenerator:
 
     def __init__(self, dynamics: Dynamics,
                  control_generator: SequenceGenerator, control_delta,
-                 noise_std, initial_state_generator, n_trajectories, n_samples,
-                 time_horizon, split):
+                 noise_std, initial_state_generator, method, n_trajectories,
+                 n_samples, time_horizon, split):
         if split[0] + split[1] >= 100:
             raise Exception("Invalid data split.")
 
@@ -105,7 +107,8 @@ class TrajectoryDataGenerator:
             dynamics,
             control_delta=control_delta,
             control_generator=control_generator,
-            initial_state_generator=initial_state_generator)
+            initial_state_generator=initial_state_generator,
+            method=method)
 
         self.n_val_t = int(n_trajectories * (split[0] / 100.))
         self.n_test_t = int(n_trajectories * (split[1] / 100.))
