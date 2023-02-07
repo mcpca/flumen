@@ -76,6 +76,30 @@ class LogNormalSqWave(SequenceGenerator):
         return control_seq
 
 
+class UniformSqWave(SequenceGenerator):
+
+    def __init__(self, period, min=0., max=1., rng=None):
+        super(UniformSqWave, self).__init__(rng)
+
+        self._period = period
+        self._min = min
+        self._max = max
+
+    def _sample_impl(self, time_range, delta):
+        n_control_vals = int(1 +
+                             np.floor((time_range[1] - time_range[0]) / delta))
+
+        n_amplitude_vals = int(np.ceil(n_control_vals / self._period))
+
+        amp_seq = self._rng.uniform(low=self._min,
+                                    high=self._max,
+                                    size=(n_amplitude_vals, 1))
+
+        control_seq = np.repeat(amp_seq, self._period, axis=0)[:n_control_vals]
+
+        return control_seq
+
+
 class RandomWalkSequence(SequenceGenerator):
 
     def __init__(self, mean=0., std=1., rng=None):

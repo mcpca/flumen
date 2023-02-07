@@ -5,25 +5,7 @@ import numpy as np
 
 from dynamics import Dynamics
 from sequence_generators import SequenceGenerator
-
-
-class InitialStateGenerator:
-
-    def __init__(self, rng: np.random.Generator = None):
-        self._rng = rng if rng else np.random.default_rng()
-
-    def sample(self):
-        return self._sample_impl()
-
-
-class GaussianInitialState(InitialStateGenerator):
-
-    def __init__(self, n, rng: np.random.Generator = None):
-        self.rng = rng if rng else np.random.default_rng()
-        self.n = n
-
-    def _sample_impl(self):
-        return self.rng.standard_normal(size=self.n)
+from initial_state import InitialStateGenerator, GaussianInitialState
 
 
 class TrajectorySampler:

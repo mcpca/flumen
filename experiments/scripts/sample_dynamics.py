@@ -3,7 +3,8 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import dynamics
 import sequence_generators
-from flow_model_odedata import TrajectoryGenerator
+import initial_state
+from trajectory_sampler import TrajectorySampler
 from argparse import ArgumentParser
 
 from matplotlib import pyplot as plt
@@ -24,18 +25,26 @@ def parse_args():
 def main():
     args = parse_args()
 
-    dyn = dynamics.Pendulum(freq=0.5, damping=0.1)
-    inputs = sequence_generators.SinusoidalSequence(max_freq=1.0)
-    inputs._amp_std = np.log(args.std)
-    gen = TrajectoryGenerator(dyn, args.control_delta, inputs)
+    dyn = dynamics.HodgkinHuxleyFS()
+    inputs = sequence_generators.UniformSqWave(period=args.period)
+    gen = TrajectorySampler(dynamics=dyn, time_horizon=args.time_horizon,
+                            n_samples=int(1000 * args.time_horizon),
+                            control_delta=args.control_delta,
+                            control_generator=inputs,
+                            initial_state_generator=initial_state.HHFSInitialState(),
+                            method='BDF')
+
+    n_dims = dyn.dims()[0]
 
     while True:
-        fig, ax = plt.subplots(2, 1, sharex=True)
+        fig, ax = plt.subplots(n_dims + 1, 1, sharex=True)
 
-        _, t, y, u = gen.get_example(time_horizon=args.time_horizon,
-                                     n_samples=int(100 * args.time_horizon))
-        ax[0].plot(t, y, 'k')
-        ax[1].plot(args.control_delta * np.arange(u.size), u)
+        _, t, y, u = gen.get_example()
+
+        for k in range(n_dims):
+            ax[k].plot(t, y[:, k], 'k')
+
+        ax[-1].plot(args.control_delta * np.arange(u.size), u)
         plt.show()
         plt.close(fig)
 

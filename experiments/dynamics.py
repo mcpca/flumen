@@ -72,3 +72,50 @@ class Pendulum(Dynamics):
         dv = -self.freq2 * np.sin(p) - self.damping * v + u.item()
 
         return (dp, dv)
+
+
+class HodgkinHuxleyFS(Dynamics):
+
+    def __init__(self):
+        super().__init__(4, 1)
+
+        self.time_scale = 100
+
+        # Parameters follow
+        #   A. G. Giannari and A. Astolfi, ‘Model design for networks of
+        #   heterogeneous Hodgkin–Huxley neurons’,
+        #   Neurocomputing, vol. 496, pp. 147–157, Jul. 2022,
+        #   doi: 10.1016/j.neucom.2022.04.115.
+        self.c_m = 0.5
+        self.v_k = -90.
+        self.v_na = 50.
+        self.v_l = -70.
+        self.v_t = -56.2
+        self.g_k = 10.
+        self.g_na = 56.
+        self.g_l = 1.5e-2
+
+    def _dx(self, x, u):
+        v, n, m, h = x
+
+        dv = (u.item() - self.g_k * n**4 *
+              (v - self.v_k) - self.g_na * m**3 * h *
+              (v - self.v_na) - self.g_l * (v - self.v_l)) / self.c_m
+
+        a_n = -0.032 * (v - self.v_t -
+                        15.) / (np.exp(-(v - self.v_t - 15.) / 5.) - 1)
+        b_n = 0.5 * np.exp(-(v - self.v_t - 10.) / 40.)
+        dn = a_n * (1. - n) - b_n * n
+
+        a_m = -0.32 * (v - self.v_t -
+                       13.) / (np.exp(-(v - self.v_t - 13.) / 4.) - 1)
+        b_m = 0.28 * (v - self.v_t - 40.) / (np.exp(
+            (v - self.v_t - 40.) / 5.) - 1)
+        dm = a_m * (1. - m) - b_m * m
+
+        a_h = 0.128 * np.exp(-(v - self.v_t - 17.) / 18.)
+        b_h = 4. / (1. + np.exp(-(v - self.v_t - 40.) / 5.))
+        dh = a_h * (1. - h) - b_h * h
+
+        return (self.time_scale * dv, self.time_scale * dn,
+                self.time_scale * dm, self.time_scale * dh)
