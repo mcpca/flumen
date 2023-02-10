@@ -1,6 +1,5 @@
-import torch
 from scipy.integrate import solve_ivp
-from pyDOE import lhs
+from pyDOE2 import lhs
 import numpy as np
 
 from dynamics import Dynamics
