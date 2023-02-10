@@ -12,7 +12,7 @@ def main():
     dynamics = FitzHughNagumo(tau=0.8, a=-0.3, b=1.4)
     control_generator = LogNormalSqWave(mean=log(0.2), std=0.5, period=40)
 
-    generate(args, dynamics, control_generator)
+    generate(args, dynamics, control_generator, method='BDF')
 
 
 if __name__ == '__main__':
