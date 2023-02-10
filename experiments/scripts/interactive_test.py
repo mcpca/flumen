@@ -59,23 +59,35 @@ def main():
 
     with torch.no_grad():
         while True:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(1 + model.state_dim, 1, sharex=True)
+
+            time_horizon=2 * experiment.generator.time_horizon
 
             x0, t, y, u = trajectory_generator.get_example(
-                time_horizon=2 * experiment.generator.time_horizon,
-                n_samples=1000)
+                time_horizon=time_horizon,
+                n_samples=int(1 + 1000 * time_horizon))
 
             x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
 
             y_pred = experiment.predict(model, t_feed, x0_feed, u_feed)
 
             sq_error = np.square(y - np.flip(y_pred, 0))
-            print(np.mean(np.sum(sq_error, axis=1)))
+            print(np.mean(sq_error))
 
-            ax.plot(t_feed, y_pred, 'k', label='Prediction')
-            ax.plot(t, y, 'b--', label='True state')
+            for k, ax_ in enumerate(ax[:-1]):
+                ax_.plot(t_feed, y_pred[:, k], 'k', label='Prediction')
+                ax_.plot(t, y[:, k], 'b--', label='True state')
+                ax_.set_ylabel(f"$x_{k+1}$")
 
-            ax.legend()
+            ax[0].legend()
+
+            ax[-1].step(np.arange(0., time_horizon + delta, delta), u)
+            ax[-1].set_ylabel("$u$")
+            ax[-1].set_xlabel("$t$")
+
+            fig.tight_layout()
+            fig.subplots_adjust(hspace=0)
+            plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
 
             plt.show()
             plt.close(fig)
