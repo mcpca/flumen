@@ -27,7 +27,7 @@ def main():
 
     data = torch.load(args.load_path)
 
-    if args.reset_noise_var:
+    if args.reset_noise:
         data.reset_state_noise(args.noise_std)
         if args.noise_std is not None:
             data.generator.noise_std = args.noise_std
