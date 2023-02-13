@@ -13,20 +13,24 @@ def main():
                     type=str,
                     help="Path to load .pth trajectory dataset")
 
-    ap.add_argument(
-        '--reset_noise_var',
-        type=float,
-        default=None,
-        help="Regenerate the measurement noise and set variance to this value."
-    )
+    ap.add_argument('--reset_noise',
+                    action='store_true',
+                    help="Regenerate the measurement noise.")
+
+    ap.add_argument('--noise_std',
+                    type=float,
+                    default=None,
+                    help="If reset_noise is set, set standard deviation ' \
+                            'of the measurement noise to this value.")
 
     args = ap.parse_args()
 
     data = torch.load(args.load_path)
 
     if args.reset_noise_var:
-        data.reset_state_noise(args.reset_noise_var)
-        data.generator.noise_std = args.reset_noise_var
+        data.reset_state_noise(args.noise_std)
+        if args.noise_std is not None:
+            data.generator.noise_std = args.noise_std
 
     experiment, train_args = prepare_experiment(data, args)
 
