@@ -54,13 +54,14 @@ def main():
     model.eval()
 
     trajectory_generator: TrajectorySampler = experiment.generator.sampler
-    trajectory_generator._noise_std = 0.
     delta = trajectory_generator._delta
+
+    fig, ax = plt.subplots(1 + model.state_dim, 1, sharex=True)
+    fig.canvas.mpl_connect('close_event', on_close_window)
+    plt.ion()
 
     with torch.no_grad():
         while True:
-            fig, ax = plt.subplots(1 + model.state_dim, 1, sharex=True)
-
             time_horizon=2 * experiment.generator.time_horizon
 
             x0, t, y, u = trajectory_generator.get_example(
@@ -89,9 +90,14 @@ def main():
             fig.subplots_adjust(hspace=0)
             plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
 
-            plt.show()
-            plt.close(fig)
+            plt.draw()
+            plt.waitforbuttonpress()
+            for ax_ in ax:
+                ax_.clear()
 
+
+def on_close_window(ev):
+    sys.exit(0)
 
 if __name__ == '__main__':
     main()
