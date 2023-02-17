@@ -34,27 +34,27 @@ def get_arg_parser():
     ap.add_argument('--encoder_size',
                     type=positive_int,
                     help="Size (multiplier) of the encoder layers",
-                    default=5)
+                    default=1)
 
     ap.add_argument('--encoder_depth',
                     type=positive_int,
                     help="Depth of the encoder",
-                    default=3)
+                    default=2)
 
     ap.add_argument('--decoder_size',
                     type=positive_int,
                     help="Size (multiplier) of the decoder layers",
-                    default=5)
+                    default=1)
 
     ap.add_argument('--decoder_depth',
                     type=positive_int,
                     help="Depth of the decoder",
-                    default=3)
+                    default=2)
 
     ap.add_argument('--batch_size',
                     type=positive_int,
                     help="Batch size for training and validation",
-                    default=256)
+                    default=1024)
 
     ap.add_argument('--lr',
                     type=positive_float,
