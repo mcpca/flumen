@@ -50,10 +50,11 @@ class RawTrajectoryDataset(Dataset):
                     torch.get_default_dtype()).reshape((-1, self.control_dim)))
 
     @classmethod
-    def generate(cls, generator, n_trajectories, noise_std):
+    def generate(cls, generator, time_horizon, n_trajectories, n_samples,
+                 noise_std):
 
         def get_example():
-            x0, t, y, u = generator.get_example()
+            x0, t, y, u = generator.get_example(time_horizon, n_samples)
             return {
                 "init_state": x0,
                 "time": t,

@@ -102,8 +102,6 @@ class TrajectoryDataGenerator:
         self.noise_std = noise_std
 
         self.sampler = TrajectorySampler(
-            time_horizon,
-            n_samples,
             dynamics,
             control_delta=control_delta,
             control_generator=control_generator,
@@ -120,15 +118,21 @@ class TrajectoryDataGenerator:
     def _generate_raw(self):
         train_data = RawTrajectoryDataset.generate(
             self.sampler,
+            self.time_horizon,
             n_trajectories=self.n_train_t,
+            n_samples=self.n_samples,
             noise_std=self.noise_std)
 
         val_data = RawTrajectoryDataset.generate(self.sampler,
+                                                 self.time_horizon,
                                                  n_trajectories=self.n_val_t,
+                                                 n_samples=self.n_samples,
                                                  noise_std=self.noise_std)
 
         test_data = RawTrajectoryDataset.generate(self.sampler,
+                                                  self.time_horizon,
                                                   n_trajectories=self.n_test_t,
+                                                  n_samples=self.n_samples,
                                                   noise_std=0.)
 
         return train_data, val_data, test_data
