@@ -21,7 +21,7 @@ class CausalFlowModel(nn.Module):
             dropout=0,
         )
 
-        x_dnn_osz = control_rnn_depth * 2 * control_rnn_size
+        x_dnn_osz = control_rnn_depth * control_rnn_size
         self.x_dnn = FFNet(in_size=state_dim,
                            out_size=x_dnn_osz,
                            hidden_size=encoder_depth *
@@ -34,14 +34,9 @@ class CausalFlowModel(nn.Module):
                            (decoder_size * u_dnn_isz, ))
 
     def forward(self, t, x, u):
-        hidden_states = self.x_dnn(x)
-
-        h0, c0 = hidden_states.split(self.u_rnn.num_layers *
-                                     self.control_rnn_size,
-                                     dim=1)
-
+        h0 = self.x_dnn(x)
         h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
-        c0 = torch.stack(c0.split(self.control_rnn_size, dim=1))
+        c0 = torch.zeros_like(h0)
 
         rnn_out_seq_packed, _ = self.u_rnn(u, (h0, c0))
         h, _ = torch.nn.utils.rnn.pad_packed_sequence(rnn_out_seq_packed,
