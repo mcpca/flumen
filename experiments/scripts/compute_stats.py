@@ -3,7 +3,8 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 from argparse import ArgumentParser
-import os, csv, re
+import csv
+from glob import glob
 from copy import deepcopy
 
 import torch
@@ -44,10 +45,11 @@ def main():
         TrainError(),
         ValError(),
         TestError(),
+        MeasurementNoise(),
         GetParam('lr'),
         GetParam('control_rnn_size'),
         GetParam('encoder_size'),
-        GetParam('decoder_size')
+        GetParam('encoder_depth'),
     ]
 
     for path in args.test_set:
@@ -57,13 +59,8 @@ def main():
 
     for dir in args.dir:
         file_prefix = os.path.split(dir)[-1]
-        file_matcher = re.compile(file_prefix +
-                                  '_[0-9]{8}_[0-9]{6}_[0-9a-f]{32}.pth')
 
-        for fname in os.listdir(dir):
-            if not file_matcher.match(fname):
-                continue
-
+        for fname in glob('*.pth', root_dir=dir):
             load_path = os.path.join(dir, fname)
             experiment: Experiment = torch.load(
                 load_path, map_location=torch.device('cpu'))
@@ -149,6 +146,18 @@ class TestError:
 
     def __str__(self):
         return 'test_mse'
+
+
+class MeasurementNoise:
+
+    def __init__(self):
+        pass
+
+    def __call__(self, experiment: Experiment):
+        return experiment.generator.noise_std
+
+    def __str__(self):
+        return 'noise_std'
 
 
 class ValError:
