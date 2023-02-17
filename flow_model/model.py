@@ -33,7 +33,7 @@ class CausalFlowModel(nn.Module):
                            hidden_size=decoder_depth *
                            (decoder_size * u_dnn_isz, ))
 
-    def forward(self, t, x, u):
+    def forward(self, x, u):
         h0 = self.x_dnn(x)
         h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
         c0 = torch.zeros_like(h0)

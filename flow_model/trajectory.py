@@ -89,7 +89,6 @@ class TrajectoryDataset(Dataset):
 
         self.init_state = torch.empty((self.len, self.state_dim))
         self.state = torch.empty((self.len, self.state_dim))
-        self.time = torch.empty((self.len, 1))
 
         rnn_input_data = []
         seq_len_data = []
@@ -102,7 +101,6 @@ class TrajectoryDataset(Dataset):
 
             for k_s, y_s in enumerate(y):
                 self.state[k_tr + k_s] = y_s
-                self.time[k_tr + k_s] = t[k_s] - t[0]
 
                 rnn_input, rnn_input_len = self.process_example(
                     k_s, t, u, self.delta)
@@ -149,5 +147,5 @@ class TrajectoryDataset(Dataset):
         return self.len
 
     def __getitem__(self, index):
-        return (self.init_state[index], self.time[index], self.state[index],
+        return (self.init_state[index], self.state[index],
                 self.rnn_input[index], self.seq_lens[index])

@@ -110,10 +110,10 @@ class Experiment:
             torch.save(self,
                        os.path.join(self.save_path, self.file_name + '.pth'))
 
-    def predict(self, model, t, x0, u):
+    def predict(self, model, x0, u):
         x0[:] = (x0 - self.td_mean) @ self.td_std_inv
         with torch.no_grad():
-            y_pred = model(t, x0, u).numpy()
+            y_pred = model(x0, u).numpy()
         y_pred[:] = self.td_mean + y_pred @ self.td_std
 
         return y_pred

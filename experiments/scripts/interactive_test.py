@@ -70,7 +70,7 @@ def main():
 
             x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
 
-            y_pred = experiment.predict(model, t_feed, x0_feed, u_feed)
+            y_pred = experiment.predict(model, x0_feed, u_feed)
 
             sq_error = np.square(y - np.flip(y_pred, 0))
             print(np.mean(sq_error))

@@ -7,11 +7,10 @@ def validate(data, loss_fn, model, device):
     vl = 0.
 
     with torch.no_grad():
-        for (x0, t, y, u, lengths) in data:
+        for (x0, y, u, lengths) in data:
             sort_idxs = torch.argsort(lengths, descending=True)
 
             x0 = x0[sort_idxs]
-            t = t[sort_idxs]
             y = y[sort_idxs]
             u = u[sort_idxs]
             lengths = lengths[sort_idxs]
@@ -22,23 +21,21 @@ def validate(data, loss_fn, model, device):
                                                         enforce_sorted=True)
 
             x0 = x0.to(device)
-            t = t.to(device)
             y = y.to(device)
             u = u.to(device)
 
-            y_pred = model(t, x0, u)
+            y_pred = model(x0, u)
             vl += loss_fn(y, y_pred).item()
 
     return vl / len(data)
 
 
 def train_step(example, loss_fn, model, optimizer, device):
-    x0, t, y, u, lengths = example
+    x0, y, u, lengths = example
 
     sort_idxs = torch.argsort(lengths, descending=True)
 
     x0 = x0[sort_idxs]
-    t = t[sort_idxs]
     y = y[sort_idxs]
     u = u[sort_idxs]
     lengths = lengths[sort_idxs]
@@ -49,13 +46,12 @@ def train_step(example, loss_fn, model, optimizer, device):
                                                 enforce_sorted=True)
 
     x0 = x0.to(device)
-    t = t.to(device)
     y = y.to(device)
     u = u.to(device)
 
     optimizer.zero_grad()
 
-    y_pred = model(t, x0, u)
+    y_pred = model(x0, u)
     loss = loss_fn(y, y_pred)
 
     loss.backward()
