@@ -31,7 +31,8 @@ def instantiate_model(args, state_dim, control_dim):
                            encoder_size=args.encoder_size,
                            encoder_depth=args.encoder_depth,
                            decoder_size=args.decoder_size,
-                           decoder_depth=args.decoder_depth)
+                           decoder_depth=args.decoder_depth,
+                           use_batch_norm=args.use_batch_norm)
 
 
 class Experiment:

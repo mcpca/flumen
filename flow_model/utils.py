@@ -91,6 +91,10 @@ def get_arg_parser():
                     help="LR Scheduler -- Reduction factor",
                     default=5)
 
+    ap.add_argument('--use_batch_norm',
+                    action='store_true',
+                    help="Use batch normalisation in encoder and decoder.")
+
     ap.add_argument(
         '--whiten_data',
         action='store_true',
