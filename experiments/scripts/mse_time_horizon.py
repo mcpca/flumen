@@ -3,9 +3,8 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import torch
-from torch.utils.data import DataLoader
-from flow_model import TrajectoryDataset, validate
-from flow_model_odedata import TrajectoryGenerator, ODEExperiment
+from flow_model import (Experiment, RawTrajectoryDataset, pack_model_inputs)
+from trajectory_sampler import TrajectorySampler
 
 import pandas as pd
 import seaborn as sns
@@ -17,13 +16,18 @@ from os.path import isfile
 
 PREFIX = 'mse_time_horizon_'
 
+plt.rc('axes', labelsize=14)
+TICK_SIZE = 11
+plt.rc('xtick', labelsize=TICK_SIZE)
+plt.rc('ytick', labelsize=TICK_SIZE)
+
 
 def parse_args():
     ap = ArgumentParser()
     ap.add_argument('path', type=str, help="Path to .pth file")
     ap.add_argument('--t_max', type=float, default=100)
-    ap.add_argument('--n_t_steps', type=float, default=20)
-    ap.add_argument('--n_mc', type=int, default=25)
+    ap.add_argument('--n_t_steps', type=int, default=20)
+    ap.add_argument('--n_traj', type=int, default=25)
     ap.add_argument('--force', action='store_true')
 
     return ap.parse_args()
@@ -32,7 +36,8 @@ def parse_args():
 def main():
     args = parse_args()
 
-    experiment: ODEExperiment = torch.load(args.path, map_location=torch.device('cpu'))
+    experiment: Experiment = torch.load(args.path,
+                                        map_location=torch.device('cpu'))
     fname = PREFIX + experiment.train_id.hex + '.csv'
 
     if args.force or not isfile(fname):
@@ -45,6 +50,7 @@ def main():
 
     sns.lineplot(x='Time horizon', y='Loss', data=loss_vals, ax=ax)
     ax.set_yscale('log')
+    fig.tight_layout()
     plt.show()
 
 
@@ -52,30 +58,29 @@ def compute_loss_vals(args, experiment):
     model = experiment.load_model()
     model.eval()
 
-    generator: TrajectoryGenerator = experiment.generator
+    sampler: TrajectorySampler = experiment.generator.sampler
+    delta = sampler._delta
+    sampler.reset_rngs()
 
-    th_vals = np.linspace(15., args.t_max, args.n_t_steps)
+    th_vals = np.linspace(experiment.generator.time_horizon, args.t_max,
+                          args.n_t_steps)
     loss_vals = []
 
     for time_horizon in th_vals:
-        n_samples = int(100 * time_horizon / 15.)
-        dset = TrajectoryDataset(generator,
-                                 n_trajectories=args.n_mc,
-                                 n_samples=n_samples,
-                                 time_horizon=time_horizon)
+        print(f"Time horizon = {time_horizon:.2f}")
+        n_samples = int(200. * time_horizon /
+                        experiment.generator.time_horizon)
 
-        dset.state[:] = (
-            (dset.state[:] - experiment.td_mean) @ experiment.td_std_inv).type(
-                torch.get_default_dtype())
-        dset.init_state[:] = (
-            (dset.init_state[:] - experiment.td_mean) @ experiment.td_std_inv).type(
-                torch.get_default_dtype())
+        dset_raw = RawTrajectoryDataset.generate(sampler,
+                                                 time_horizon,
+                                                 n_trajectories=args.n_traj,
+                                                 n_samples=n_samples,
+                                                 noise_std=0.)
 
-        dloader = DataLoader(dset, shuffle=False, batch_size=1024)
-        loss_fn = torch.nn.MSELoss()
-        print(f'T={time_horizon}')
-        loss = validate(dloader, loss_fn, model, device=torch.device('cpu'))
-        loss_vals.append([time_horizon, loss])
+        for (x0, _, t, y, _, u) in dset_raw:
+            x0_p, _, u_p = pack_model_inputs(x0, t, u.numpy(), delta)
+            y_p = np.flip(experiment.predict(model, x0_p, u_p), 0)
+            loss_vals.append([time_horizon, np.mean(np.square(y_p - y.numpy()))])
 
     return pd.DataFrame(loss_vals, columns=['Time horizon', 'Loss'])
 
