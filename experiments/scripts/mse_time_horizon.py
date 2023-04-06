@@ -16,6 +16,8 @@ from os.path import isfile
 
 PREFIX = 'mse_time_horizon_'
 
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
 plt.rc('axes', labelsize=14)
 TICK_SIZE = 11
 plt.rc('xtick', labelsize=TICK_SIZE)
