@@ -1,24 +1,44 @@
 import torch
 import time
 from .experiment import Experiment
+from random import randint
+
+
+def prep(batch, n_steps):
+    x0, y, u, u_len, delta = batch
+
+    max_seq_len = 1 + n_steps * (u.shape[1] - 1)
+
+    rnn_inputs = torch.zeros((u.shape[0], max_seq_len, 1 + u.shape[-1]))
+    lengths = 1 + n_steps * (u_len - 1)
+
+    for k_s in range(u.shape[1] - 1):
+        start = n_steps * k_s
+        end = n_steps * (k_s + 1)
+
+        steps = torch.empty((u.shape[0], n_steps)).exponential_()
+        steps = steps / steps.sum(1, keepdim=True)
+
+        rnn_inputs[:, start:end] = torch.stack(
+            (u[:, k_s].expand(-1, n_steps), steps), dim=-1)
+
+    rnn_inputs[range(u.shape[0]), u_len, :-1] = u[range(u.shape[0]), u_len]
+    rnn_inputs[range(u.shape[0]), u_len, -1] = delta
+
+    u = torch.nn.utils.rnn.pack_padded_sequence(rnn_inputs,
+                                                lengths,
+                                                batch_first=True,
+                                                enforce_sorted=False)
+
+    return x0, y, u
 
 
 def validate(data, loss_fn, model, device):
     vl = 0.
 
     with torch.no_grad():
-        for (x0, y, u, lengths) in data:
-            sort_idxs = torch.argsort(lengths, descending=True)
-
-            x0 = x0[sort_idxs]
-            y = y[sort_idxs]
-            u = u[sort_idxs]
-            lengths = lengths[sort_idxs]
-
-            u = torch.nn.utils.rnn.pack_padded_sequence(u,
-                                                        lengths,
-                                                        batch_first=True,
-                                                        enforce_sorted=True)
+        for batch in data:
+            x0, y, u = prep(batch, n_steps=1)
 
             x0 = x0.to(device)
             y = y.to(device)
@@ -30,20 +50,8 @@ def validate(data, loss_fn, model, device):
     return vl / len(data)
 
 
-def train_step(example, loss_fn, model, optimizer, device):
-    x0, y, u, lengths = example
-
-    sort_idxs = torch.argsort(lengths, descending=True)
-
-    x0 = x0[sort_idxs]
-    y = y[sort_idxs]
-    u = u[sort_idxs]
-    lengths = lengths[sort_idxs]
-
-    u = torch.nn.utils.rnn.pack_padded_sequence(u,
-                                                lengths,
-                                                batch_first=True,
-                                                enforce_sorted=True)
+def train_step(batch, loss_fn, model, optimizer, device):
+    x0, y, u = prep(batch, n_steps=randint(1, 3))
 
     x0 = x0.to(device)
     y = y.to(device)
