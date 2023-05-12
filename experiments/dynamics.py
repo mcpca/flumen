@@ -98,9 +98,12 @@ class HodgkinHuxleyFS(Dynamics):
     def _dx(self, x, u):
         v, n, m, h = x
 
+        # denormalise first state variable
+        v *= 100.
+
         dv = (u.item() - self.g_k * n**4 *
               (v - self.v_k) - self.g_na * m**3 * h *
-              (v - self.v_na) - self.g_l * (v - self.v_l)) / self.c_m
+              (v - self.v_na) - self.g_l * (v - self.v_l)) / (100. * self.c_m)
 
         a_n = -0.032 * (v - self.v_t -
                         15.) / (np.exp(-(v - self.v_t - 15.) / 5.) - 1)
@@ -117,5 +120,4 @@ class HodgkinHuxleyFS(Dynamics):
         b_h = 4. / (1. + np.exp(-(v - self.v_t - 40.) / 5.))
         dh = a_h * (1. - h) - b_h * h
 
-        return (self.time_scale * dv, self.time_scale * dn,
-                self.time_scale * dm, self.time_scale * dh)
+        return tuple(self.time_scale * dx for dx in (dv, dn, dm, dh))
