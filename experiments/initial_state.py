@@ -26,9 +26,7 @@ class HHFSInitialState(InitialStateGenerator):
         self.rng = rng if rng else np.random.default_rng()
 
     def _sample_impl(self):
-        v0 = self.rng.normal(scale=1./np.sqrt(100))
-        n0 = self.rng.uniform()
-        m0 = self.rng.uniform()
-        h0 = self.rng.uniform()
+        x0 = self.rng.uniform(size=(4,))
+        x0[0] = 2. * x0[0] - 1.
 
-        return np.array((v0, n0, m0, h0))
+        return x0
