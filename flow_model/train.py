@@ -7,12 +7,12 @@ from random import randint
 def prep(batch, n_steps):
     x0, y, u, u_len, delta = batch
 
-    max_seq_len = 1 + n_steps * (u.shape[1] - 1)
+    max_seq_len = n_steps * u.shape[1]
 
     rnn_inputs = torch.zeros((u.shape[0], max_seq_len, 1 + u.shape[-1]))
     lengths = 1 + n_steps * (u_len - 1)
 
-    for k_s in range(u.shape[1] - 1):
+    for k_s in range(u.shape[1]):
         start = n_steps * k_s
         end = n_steps * (k_s + 1)
 
@@ -22,8 +22,12 @@ def prep(batch, n_steps):
         rnn_inputs[:, start:end] = torch.stack(
             (u[:, k_s].expand(-1, n_steps), steps), dim=-1)
 
-    rnn_inputs[range(u.shape[0]), u_len, :-1] = u[range(u.shape[0]), u_len]
-    rnn_inputs[range(u.shape[0]), u_len, -1] = delta
+
+#     rnn_inputs[range(u.shape[0]), lengths - 1, :-1] = u[range(u.shape[0]),
+#                                                       u_len - 1]
+#     rnn_inputs[range(u.shape[0]), lengths - 1, -1] = delta
+
+# print(n_steps, u_len[0], lengths[0], rnn_inputs[0])
 
     u = torch.nn.utils.rnn.pack_padded_sequence(rnn_inputs,
                                                 lengths,

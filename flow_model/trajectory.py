@@ -101,7 +101,7 @@ class TrajectoryDataset(Dataset):
         for (x0, x0_n, t, y, y_n, u) in raw_data:
             y += y_n
             self.init_state[k_tr:k_tr + len(y)] = x0 + x0_n
-            self.u[k_tr:k_tr + len(y), :len(u)] = u[:]
+            self.u[k_tr:k_tr + len(y), :] = u[:]
 
             for k_s, y_s in enumerate(y):
                 self.state[k_tr + k_s] = y_s
