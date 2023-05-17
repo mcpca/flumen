@@ -4,9 +4,16 @@ from torch import nn
 
 class CausalFlowModel(nn.Module):
 
-    def __init__(self, state_dim, control_dim, control_rnn_size,
-                 control_rnn_depth, encoder_size, encoder_depth, decoder_size,
-                 decoder_depth, use_batch_norm=False):
+    def __init__(self,
+                 state_dim,
+                 control_dim,
+                 control_rnn_size,
+                 control_rnn_depth,
+                 encoder_size,
+                 encoder_depth,
+                 decoder_size,
+                 decoder_depth,
+                 use_batch_norm=False):
         super(CausalFlowModel, self).__init__()
 
         self.state_dim = state_dim
@@ -60,7 +67,11 @@ class CausalFlowModel(nn.Module):
 
 class FFNet(nn.Module):
 
-    def __init__(self, in_size, out_size, hidden_size, activation=nn.Tanh,
+    def __init__(self,
+                 in_size,
+                 out_size,
+                 hidden_size,
+                 activation=nn.Tanh,
                  use_batch_norm=False):
         super(FFNet, self).__init__()
 

@@ -23,6 +23,7 @@ class RawTrajectoryDataset(Dataset):
             (n_traj, self.state_dim)).type(torch.get_default_dtype())
         self.init_state_noise = torch.empty(
             (n_traj, self.state_dim)).type(torch.get_default_dtype())
+
         self.time = []
         self.state = []
         self.state_noise = []
@@ -113,7 +114,6 @@ class TrajectoryDataset(Dataset):
         self.rnn_input = torch.stack(rnn_input_data).type(
             torch.get_default_dtype())
         self.seq_lens = torch.tensor(seq_len_data, dtype=torch.long)
-        self.len = self.seq_lens.shape[0]
 
     @staticmethod
     def process_example(end_idx, t, u, delta):

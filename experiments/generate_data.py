@@ -69,6 +69,7 @@ def generate(args,
              dynamics: Dynamics,
              seq_gen: SequenceGenerator,
              initial_state_generator=None,
+             postprocess=[],
              method='RK45'):
     data_generator = TrajectoryDataGenerator(
         dynamics,
@@ -83,6 +84,11 @@ def generate(args,
         method=method)
 
     data = data_generator.generate()
+
+    for d in (data.train_data, data.val_data, data.test_data):
+        for p in postprocess:
+            p(d)
+
     torch.save(data, f'outputs/{args.save_path}')
 
 
