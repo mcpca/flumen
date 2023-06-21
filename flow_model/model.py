@@ -42,25 +42,23 @@ class CausalFlowModel(nn.Module):
                            (decoder_size * u_dnn_isz, ),
                            use_batch_norm=use_batch_norm)
 
-    def forward(self, x, u):
+    def forward(self, x, rnn_input, deltas):
         h0 = self.x_dnn(x)
         h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
         c0 = torch.zeros_like(h0)
 
-        rnn_out_seq_packed, _ = self.u_rnn(u, (h0, c0))
-        h, _ = torch.nn.utils.rnn.pad_packed_sequence(rnn_out_seq_packed,
-                                                      batch_first=True)
-
-        u_raw, u_lens = torch.nn.utils.rnn.pad_packed_sequence(
-            u, batch_first=True)
-        deltas = u_raw[:, :, -1].unsqueeze(-1)
+        rnn_out_seq_packed, _ = self.u_rnn(rnn_input, (h0, c0))
+        h, h_lens = torch.nn.utils.rnn.pad_packed_sequence(rnn_out_seq_packed,
+                                                           batch_first=True)
 
         h_shift = torch.roll(h, shifts=1, dims=1)
         h_shift[:, 0, :] = h0[-1]
 
+        # print(h.shape, h_shift.shape, deltas.shape)
+
         encoded_controls = (1 - deltas) * h_shift + deltas * h
         output = self.u_dnn(encoded_controls[range(encoded_controls.shape[0]),
-                                             u_lens - 1, :])
+                                             h_lens - 1, :])
 
         return output
 

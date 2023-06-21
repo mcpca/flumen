@@ -62,15 +62,16 @@ def main():
 
     with torch.no_grad():
         while True:
-            time_horizon=2 * experiment.generator.time_horizon
+            time_horizon = 2 * experiment.generator.time_horizon
 
             x0, t, y, u = trajectory_generator.get_example(
                 time_horizon=time_horizon,
                 n_samples=int(1 + 1000 * time_horizon))
 
-            x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
+            x0_feed, t_feed, u_feed, deltas_feed = pack_model_inputs(
+                x0, t, u, delta)
 
-            y_pred = experiment.predict(model, x0_feed, u_feed)
+            y_pred = experiment.predict(model, x0_feed, u_feed, deltas_feed)
 
             sq_error = np.square(y - np.flip(y_pred, 0))
             print(np.mean(sq_error))
@@ -88,7 +89,8 @@ def main():
 
             fig.tight_layout()
             fig.subplots_adjust(hspace=0)
-            plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+            plt.setp([a.get_xticklabels() for a in fig.axes[:-1]],
+                     visible=False)
 
             plt.draw()
             plt.waitforbuttonpress()
@@ -98,6 +100,7 @@ def main():
 
 def on_close_window(ev):
     sys.exit(0)
+
 
 if __name__ == '__main__':
     main()

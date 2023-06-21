@@ -3,42 +3,15 @@ import time
 from .experiment import Experiment
 
 
-def validate(data, loss_fn, model, device):
-    vl = 0.
-
-    with torch.no_grad():
-        for (x0, y, u, lengths) in data:
-            sort_idxs = torch.argsort(lengths, descending=True)
-
-            x0 = x0[sort_idxs]
-            y = y[sort_idxs]
-            u = u[sort_idxs]
-            lengths = lengths[sort_idxs]
-
-            u = torch.nn.utils.rnn.pack_padded_sequence(u,
-                                                        lengths,
-                                                        batch_first=True,
-                                                        enforce_sorted=True)
-
-            x0 = x0.to(device)
-            y = y.to(device)
-            u = u.to(device)
-
-            y_pred = model(x0, u)
-            vl += loss_fn(y, y_pred).item()
-
-    return vl / len(data)
-
-
-def train_step(example, loss_fn, model, optimizer, device):
-    x0, y, u, lengths = example
-
+def prep_inputs(x0, y, u, lengths, device):
     sort_idxs = torch.argsort(lengths, descending=True)
 
     x0 = x0[sort_idxs]
     y = y[sort_idxs]
     u = u[sort_idxs]
     lengths = lengths[sort_idxs]
+
+    deltas = u[:, :-1, -1].unsqueeze(-1)
 
     u = torch.nn.utils.rnn.pack_padded_sequence(u,
                                                 lengths,
@@ -48,10 +21,30 @@ def train_step(example, loss_fn, model, optimizer, device):
     x0 = x0.to(device)
     y = y.to(device)
     u = u.to(device)
+    deltas = deltas.to(device)
+
+    return x0, y, u, deltas
+
+
+def validate(data, loss_fn, model, device):
+    vl = 0.
+
+    with torch.no_grad():
+        for example in data:
+            x0, y, u, deltas = prep_inputs(*example, device)
+
+            y_pred = model(x0, u, deltas)
+            vl += loss_fn(y, y_pred).item()
+
+    return vl / len(data)
+
+
+def train_step(example, loss_fn, model, optimizer, device):
+    x0, y, u, deltas = prep_inputs(*example, device)
 
     optimizer.zero_grad()
 
-    y_pred = model(x0, u)
+    y_pred = model(x0, u, deltas)
     loss = loss_fn(y, y_pred)
 
     loss.backward()
