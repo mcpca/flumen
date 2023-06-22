@@ -11,7 +11,7 @@ def prep_inputs(x0, y, u, lengths, device):
     u = u[sort_idxs]
     lengths = lengths[sort_idxs]
 
-    deltas = u[:, :-1, -1].unsqueeze(-1)
+    deltas = u[:, :lengths[0], -1].unsqueeze(-1)
 
     u = torch.nn.utils.rnn.pack_padded_sequence(u,
                                                 lengths,

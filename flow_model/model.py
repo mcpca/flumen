@@ -54,8 +54,6 @@ class CausalFlowModel(nn.Module):
         h_shift = torch.roll(h, shifts=1, dims=1)
         h_shift[:, 0, :] = h0[-1]
 
-        # print(h.shape, h_shift.shape, deltas.shape)
-
         encoded_controls = (1 - deltas) * h_shift + deltas * h
         output = self.u_dnn(encoded_controls[range(encoded_controls.shape[0]),
                                              h_lens - 1, :])
