@@ -39,7 +39,6 @@ def prepare_experiment(data, args):
                             save_root=args.write_dir)
 
     model: CausalFlowModel = instantiate_model(args, train_data.state_dim,
-
                                                train_data.control_dim)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -50,7 +49,9 @@ def prepare_experiment(data, args):
         optimizer,
         patience=args.sched_patience,
         cooldown=args.sched_cooldown,
-        factor=1. / args.sched_factor)
+        factor=1. / args.sched_factor,
+        threshold=args.es_delta,
+        verbose=True)
 
     mse_loss = torch.nn.MSELoss().to(device)
 

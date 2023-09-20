@@ -84,7 +84,7 @@ def get_arg_parser():
     ap.add_argument('--sched_cooldown',
                     type=positive_int,
                     help="LR scheduler -- Cooldown epochs",
-                    default=2)
+                    default=0)
 
     ap.add_argument('--sched_factor',
                     type=positive_int,
