@@ -129,11 +129,15 @@ class TrajectoryDataGenerator:
             n_samples=self.n_samples,
             noise_std=self.noise_std)
 
+        self.sampler.reset_rngs()
+
         val_data = RawTrajectoryDataset.generate(self.sampler,
                                                  self.time_horizon,
                                                  n_trajectories=self.n_val_t,
                                                  n_samples=self.n_samples,
                                                  noise_std=self.noise_std)
+
+        self.sampler.reset_rngs()
 
         test_data = RawTrajectoryDataset.generate(self.sampler,
                                                   self.time_horizon,
