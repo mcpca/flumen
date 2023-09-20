@@ -50,6 +50,10 @@ def main():
         GetParam('control_rnn_size'),
         GetParam('encoder_size'),
         GetParam('encoder_depth'),
+        GetParam('decoder_size'),
+        GetParam('decoder_depth'),
+        GetParam('batch_size'),
+        Epochs(),
     ]
 
     for path in args.test_set:
@@ -194,6 +198,18 @@ class TrainTime:
 
     def __str__(self):
         return 'train_time'
+
+
+class Epochs:
+
+    def __init__(self):
+        pass
+
+    def __call__(self, experiment: Experiment):
+        return experiment.n_epochs
+
+    def __str__(self):
+        return 'n_epochs'
 
 
 class GetParam:

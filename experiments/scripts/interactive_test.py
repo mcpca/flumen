@@ -62,7 +62,7 @@ def main():
 
     with torch.no_grad():
         while True:
-            time_horizon=2 * experiment.generator.time_horizon
+            time_horizon=4 * experiment.generator.time_horizon
 
             x0, t, y, u = trajectory_generator.get_example(
                 time_horizon=time_horizon,
@@ -76,8 +76,8 @@ def main():
             print(np.mean(sq_error))
 
             for k, ax_ in enumerate(ax[:-1]):
-                ax_.plot(t_feed, y_pred[:, k], 'k', label='Prediction')
-                ax_.plot(t, y[:, k], 'b--', label='True state')
+                ax_.plot(t, y[:, k], 'b', label='True state')
+                ax_.plot(t_feed, y_pred[:, k], c='orange', label='Prediction')
                 ax_.set_ylabel(f"$x_{k+1}$")
 
             ax[0].legend()
@@ -91,7 +91,12 @@ def main():
             plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
 
             plt.draw()
-            plt.waitforbuttonpress()
+
+            # Wait for key press
+            skip = False
+            while not skip:
+                skip = plt.waitforbuttonpress()
+
             for ax_ in ax:
                 ax_.clear()
 

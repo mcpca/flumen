@@ -25,6 +25,9 @@ def main():
                             sharex=True,
                             sharey=False)
 
+    if len(outputs) == 1:
+        axs = [axs]
+
     fig.set_size_inches((15, len(outputs)*9))
 
     y_min = data[outputs].min().min()
@@ -43,7 +46,8 @@ def main():
     axs[-1].set_xlabel(param)
 
     fig.tight_layout()
-    fig.savefig(sys.argv[1] + ".pdf")
+    plt.show()
+    # fig.savefig(sys.argv[1] + ".pdf")
 
 
 if __name__ == "__main__":
