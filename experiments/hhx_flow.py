@@ -6,6 +6,7 @@ from initial_state import HHFSInitialState
 from generate_data import parse_args, generate
 
 from math import log
+from scipy.signal import find_peaks
 
 
 # Downsample trajectories, focusing on the peaks
@@ -13,13 +14,17 @@ def rejection_sampling(data):
     for (k, y) in enumerate(data.state):
         p = y[:, 0].flatten()
         p_min = p.min()
-        p = 0.01 + (p - p_min) / (p.max() - p_min)
+        p = 0.01 + ((p - p_min) / (p.max() - p_min))
 
         likelihood_ratio = p / torch.mean(p)
         lr_bound = torch.max(likelihood_ratio)
 
         u = torch.rand((len(likelihood_ratio), ))
         keep_idxs = (u <= (likelihood_ratio / lr_bound))
+        keep_idxs[0] = True
+
+        peaks, _ = find_peaks(y[:, 0])
+        keep_idxs[peaks] = True
 
         data.state[k] = y[keep_idxs, :]
         data.state_noise[k] = data.state_noise[k][keep_idxs, :]
@@ -30,7 +35,7 @@ def main():
     args = parse_args()
 
     dynamics = HodgkinHuxleyFS()
-    control_generator = UniformSqWave(period=5)
+    control_generator = UniformSqWave(period=10)
     initial_state = HHFSInitialState()
 
     generate(args,
