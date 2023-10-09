@@ -121,3 +121,127 @@ class HodgkinHuxleyFS(Dynamics):
         dh = a_h * (1. - h) - b_h * h
 
         return tuple(self.time_scale * dx for dx in (dv, dn, dm, dh))
+
+
+class HodgkinHuxleyRSA(Dynamics):
+
+    def __init__(self):
+        super().__init__(5, 1)
+
+        self.time_scale = 100
+
+        # Parameters follow
+        #   A. G. Giannari and A. Astolfi, ‘Model design for networks of
+        #   heterogeneous Hodgkin–Huxley neurons’,
+        #   Neurocomputing, vol. 496, pp. 147–157, Jul. 2022,
+        #   doi: 10.1016/j.neucom.2022.04.115.
+        self.c_m = 1.0
+        self.v_k = -90.
+        self.v_na = 56.
+        self.v_l = -70.3
+        self.v_t = -56.2
+        self.g_k = 6.
+        self.g_m = 0.075
+        self.g_na = 56.
+        self.g_l = 2.05e-2
+        self.t_max = 608.
+
+    def _dx(self, x, u):
+        v, p, n, m, h = x
+
+        # denormalise first state variable
+        v *= 100.
+
+        dv = (u.item() - (self.g_k * n**4 + self.g_m * p) *
+              (v - self.v_k) - self.g_na * m**3 * h *
+              (v - self.v_na) - self.g_l * (v - self.v_l)) / (100. * self.c_m)
+
+        t_p = self.t_max / (3.3 * np.exp(
+            (v + 35.) / 20.) + np.exp(-(v + 35.) / 20.))
+
+        dp = (1. / (1 + np.exp(-(v + 35) / 10.)) - p) / t_p
+
+        a_n = -0.032 * (v - self.v_t -
+                        15.) / (np.exp(-(v - self.v_t - 15.) / 5.) - 1)
+        b_n = 0.5 * np.exp(-(v - self.v_t - 10.) / 40.)
+        dn = a_n * (1. - n) - b_n * n
+
+        a_m = -0.32 * (v - self.v_t -
+                       13.) / (np.exp(-(v - self.v_t - 13.) / 4.) - 1)
+        b_m = 0.28 * (v - self.v_t - 40.) / (np.exp(
+            (v - self.v_t - 40.) / 5.) - 1)
+        dm = a_m * (1. - m) - b_m * m
+
+        a_h = 0.128 * np.exp(-(v - self.v_t - 17.) / 18.)
+        b_h = 4. / (1. + np.exp(-(v - self.v_t - 40.) / 5.))
+        dh = a_h * (1. - h) - b_h * h
+
+        return tuple(self.time_scale * dx for dx in (dv, dp, dn, dm, dh))
+
+
+class HodgkinHuxleyIB(Dynamics):
+
+    def __init__(self):
+        super().__init__(7, 1)
+
+        self.time_scale = 100
+
+        # Parameters follow
+        #   A. G. Giannari and A. Astolfi, ‘Model design for networks of
+        #   heterogeneous Hodgkin–Huxley neurons’,
+        #   Neurocomputing, vol. 496, pp. 147–157, Jul. 2022,
+        #   doi: 10.1016/j.neucom.2022.04.115.
+        self.c_m = 1.0
+        self.v_k = -90.
+        self.v_ca = 120.
+        self.v_na = 56.
+        self.v_l = -70
+        self.v_t = -56.2
+        self.g_k = 5.
+        self.g_m = 0.03
+        self.g_ca = 0.2
+        self.g_na = 50.
+        self.g_l = 0.01
+        self.t_max = 608.
+
+    def _dx(self, x, u):
+        v, p, q, s, n, m, h = x
+
+        # denormalise first state variable
+        v *= 100.
+
+        dv = (u.item() - (self.g_k * n**4 + self.g_m * p) *
+              (v - self.v_k) - self.g_ca * q**2 * s *
+              (v - self.v_ca) - self.g_na * m**3 * h *
+              (v - self.v_na) - self.g_l * (v - self.v_l)) / (100. * self.c_m)
+
+        t_p = self.t_max / (3.3 * np.exp(
+            (v + 35.) / 20.) + np.exp(-(v + 35.) / 20.))
+
+        dp = (1. / (1 + np.exp(-(v + 35) / 10.)) - p) / t_p
+
+        a_q = 0.055 * (-27. - v) / (np.exp((-27. - v) / 3.8) - 1.)
+        b_q = 0.94 * np.exp((-75. - v) / 17.)
+        dq = a_q * (1. - q) - b_q * q
+
+        a_s = 0.000457 * np.exp((-13. - v) / 50.)
+        b_s = 0.0065 / (np.exp((-15. - v) / 28.) + 1.)
+        ds = a_s * (1. - s) - b_s * s
+
+        a_n = -0.032 * (v - self.v_t -
+                        15.) / (np.exp(-(v - self.v_t - 15.) / 5.) - 1)
+        b_n = 0.5 * np.exp(-(v - self.v_t - 10.) / 40.)
+        dn = a_n * (1. - n) - b_n * n
+
+        a_m = -0.32 * (v - self.v_t -
+                       13.) / (np.exp(-(v - self.v_t - 13.) / 4.) - 1)
+        b_m = 0.28 * (v - self.v_t - 40.) / (np.exp(
+            (v - self.v_t - 40.) / 5.) - 1)
+        dm = a_m * (1. - m) - b_m * m
+
+        a_h = 0.128 * np.exp(-(v - self.v_t - 17.) / 18.)
+        b_h = 4. / (1. + np.exp(-(v - self.v_t - 40.) / 5.))
+        dh = a_h * (1. - h) - b_h * h
+
+        return tuple(self.time_scale * dx
+                     for dx in (dv, dp, dq, ds, dn, dm, dh))

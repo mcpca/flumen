@@ -26,7 +26,30 @@ class HHFSInitialState(InitialStateGenerator):
         self.rng = rng if rng else np.random.default_rng()
 
     def _sample_impl(self):
-        x0 = self.rng.uniform(size=(4,))
+        x0 = self.rng.uniform(size=(4, ))
+        x0[0] = 2. * x0[0] - 1.
+
+        return x0
+
+
+class HHRSAInitialState(InitialStateGenerator):
+
+    def __init__(self, rng: np.random.Generator = None):
+        self.rng = rng if rng else np.random.default_rng()
+
+    def _sample_impl(self):
+        x0 = self.rng.uniform(size=(5, ))
+        x0[0] = 2. * x0[0] - 1.
+
+        return x0
+
+class HHIBInitialState(InitialStateGenerator):
+
+    def __init__(self, rng: np.random.Generator = None):
+        self.rng = rng if rng else np.random.default_rng()
+
+    def _sample_impl(self):
+        x0 = self.rng.uniform(size=(7, ))
         x0[0] = 2. * x0[0] - 1.
 
         return x0
