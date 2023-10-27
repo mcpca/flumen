@@ -87,6 +87,20 @@ def train(experiment: Experiment, model, loss_fn, optimizer, sched,
     print(header_msg)
     print('=' * len(header_msg))
 
+    # Evaluate initial loss
+    model.eval()
+    train_loss = validate(train_dl, loss_fn, model, device)
+    val_loss = validate(val_dl, loss_fn, model, device)
+    test_loss = validate(test_dl, loss_fn, model, device)
+
+    early_stop.step(val_loss)
+    experiment.register_progress(train_loss, val_loss, test_loss,
+                                 early_stop.best_model)
+    print(
+        f"{0:>5d} :: {train_loss:>16e} :: {val_loss:>16e} :: " \
+        f"{test_loss:>16e} :: {early_stop.best_val_loss:>16e}"
+    )
+
     start = time.time()
 
     for epoch in range(max_epochs):
