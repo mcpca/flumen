@@ -18,6 +18,10 @@ def parse_args():
                     action='store_true',
                     help="Print training metadata and quit")
 
+    ap.add_argument('--all_states',
+                    action='store_true',
+                    help="Plot all states")
+
     return ap.parse_args()
 
 
@@ -56,22 +60,23 @@ def main():
     trajectory_generator: TrajectorySampler = experiment.generator.sampler
     delta = trajectory_generator._delta
 
-    fig, ax = plt.subplots(1 + model.state_dim, 1, sharex=True)
+    n_plots = 1 + model.state_dim if args.all_states else 2
+
+    fig, ax = plt.subplots(n_plots, 1, sharex=True)
     fig.canvas.mpl_connect('close_event', on_close_window)
     plt.ion()
 
     with torch.no_grad():
         while True:
-            time_horizon=4 * experiment.generator.time_horizon
+            time_horizon = experiment.generator.time_horizon
 
             x0, t, y, u = trajectory_generator.get_example(
                 time_horizon=time_horizon,
                 n_samples=int(1 + 1000 * time_horizon))
 
-            x0_feed, t_feed, u_feed, deltas_feed = pack_model_inputs(
-                x0, t, u, delta)
+            x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
 
-            y_pred = experiment.predict(model, x0_feed, u_feed, deltas_feed)
+            y_pred = experiment.predict(model, x0_feed, u_feed)
 
             sq_error = np.square(y - np.flip(y_pred, 0))
             print(np.mean(sq_error))

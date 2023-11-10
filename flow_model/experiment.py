@@ -111,10 +111,11 @@ class Experiment:
             torch.save(self,
                        os.path.join(self.save_path, self.file_name + '.pth'))
 
-    def predict(self, model, x0, u, deltas):
+    def predict(self, model, x0, u):
+        u = u.permute(1, 0, 2)
         x0[:] = (x0 - self.td_mean) @ self.td_std_inv
         with torch.no_grad():
-            y_pred = model(x0, u, deltas).numpy()
+            y_pred = model(x0, u).numpy()
         y_pred[:] = self.td_mean + y_pred @ self.td_std
 
         return y_pred

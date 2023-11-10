@@ -3,27 +3,14 @@ import time
 from .experiment import Experiment
 
 
-def prep_inputs(x0, y, u, lengths, device):
-    sort_idxs = torch.argsort(lengths, descending=True)
-
-    x0 = x0[sort_idxs]
-    y = y[sort_idxs]
-    u = u[sort_idxs]
-    lengths = lengths[sort_idxs]
-
-    deltas = u[:, :lengths[0], -1].unsqueeze(-1)
-
-    u = torch.nn.utils.rnn.pack_padded_sequence(u,
-                                                lengths,
-                                                batch_first=True,
-                                                enforce_sorted=True)
+def prep_inputs(x0, y, u, lens, device):
+    u = u.permute(1, 0, 2)
 
     x0 = x0.to(device)
     y = y.to(device)
     u = u.to(device)
-    deltas = deltas.to(device)
 
-    return x0, y, u, deltas
+    return x0, y, u
 
 
 def validate(data, loss_fn, model, device):
@@ -31,20 +18,20 @@ def validate(data, loss_fn, model, device):
 
     with torch.no_grad():
         for example in data:
-            x0, y, u, deltas = prep_inputs(*example, device)
+            x0, y, u = prep_inputs(*example, device)
 
-            y_pred = model(x0, u, deltas)
+            y_pred = model(x0, u)
             vl += loss_fn(y, y_pred).item()
 
     return vl / len(data)
 
 
 def train_step(example, loss_fn, model, optimizer, device):
-    x0, y, u, deltas = prep_inputs(*example, device)
+    x0, y, u = prep_inputs(*example, device)
 
     optimizer.zero_grad()
 
-    y_pred = model(x0, u, deltas)
+    y_pred = model(x0, u)
     loss = loss_fn(y, y_pred)
 
     loss.backward()

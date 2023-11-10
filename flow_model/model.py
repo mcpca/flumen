@@ -20,13 +20,8 @@ class CausalFlowModel(nn.Module):
         self.control_dim = control_dim
         self.control_rnn_size = control_rnn_size
 
-        self.u_rnn = torch.nn.LSTM(
-            input_size=1 + control_dim,
-            hidden_size=control_rnn_size,
-            batch_first=True,
-            num_layers=control_rnn_depth,
-            dropout=0,
-        )
+        self.u_rnn = FlowNet(input_size=1 + control_dim,
+                             hidden_size=control_rnn_size)
 
         x_dnn_osz = control_rnn_depth * control_rnn_size
         self.x_dnn = FFNet(in_size=state_dim,
@@ -43,22 +38,45 @@ class CausalFlowModel(nn.Module):
                            use_batch_norm=use_batch_norm)
 
     def forward(self, x, rnn_input, deltas):
-        h0 = self.x_dnn(x)
-        h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
-        c0 = torch.zeros_like(h0)
+        h = self.x_dnn(x)
+        c = torch.zeros_like(h)
 
-        rnn_out_seq_packed, _ = self.u_rnn(rnn_input, (h0, c0))
-        h, h_lens = torch.nn.utils.rnn.pad_packed_sequence(rnn_out_seq_packed,
-                                                           batch_first=True)
+        for u in rnn_input:
+            h, c = self.u_rnn(u, h, c)
 
-        h_shift = torch.roll(h, shifts=1, dims=1)
-        h_shift[:, 0, :] = h0[-1]
+        return self.u_dnn(h)
 
-        encoded_controls = (1 - deltas) * h_shift + deltas * h
-        output = self.u_dnn(encoded_controls[range(encoded_controls.shape[0]),
-                                             h_lens - 1, :])
 
-        return output
+class FlowNet(nn.Module):
+    '''Based on https://github.com/seba-1511/lstms.pth'''
+
+    def __init__(self, input_size: int, hidden_size: int, bias: bool = True):
+        super(FlowNet, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.i2h = nn.Linear(input_size, 4 * hidden_size, bias=bias)
+        self.h2h = nn.Linear(hidden_size, 4 * hidden_size, bias=bias)
+
+    def forward(self, u, h, c):
+        deltas = u[:, -1].unsqueeze(-1)
+
+        # Linear mappings
+        preact = self.i2h(u) + self.h2h(h)
+
+        # activations
+        gates = preact[:, :3 * self.hidden_size].sigmoid()
+        g_t = preact[:, 3 * self.hidden_size:].tanh()
+        i_t = gates[:, :self.hidden_size]
+        f_t = gates[:, self.hidden_size:2 * self.hidden_size]
+        o_t = gates[:, -self.hidden_size:]
+
+        # cell computations
+        c_t = torch.mul(c, f_t) + torch.mul(i_t, g_t)
+        h_d = torch.mul(o_t, c_t.tanh())
+
+        h_t = h + deltas * h_d
+
+        return h_t, c_t
 
 
 class FFNet(nn.Module):

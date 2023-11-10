@@ -158,9 +158,4 @@ def pack_model_inputs(x0, t, u, delta):
 
         u_[:] = torch.hstack((control_seq, deltas))
 
-    u_packed = torch.nn.utils.rnn.pack_padded_sequence(rnn_inputs,
-                                                       lengths,
-                                                       batch_first=True,
-                                                       enforce_sorted=True)
-
-    return x0, t, u_packed, rnn_inputs[:, :-1, -1].unsqueeze(-1)
+    return x0, t, rnn_inputs
