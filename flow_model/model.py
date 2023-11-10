@@ -37,7 +37,7 @@ class CausalFlowModel(nn.Module):
                            (decoder_size * u_dnn_isz, ),
                            use_batch_norm=use_batch_norm)
 
-    def forward(self, x, rnn_input, deltas):
+    def forward(self, x, rnn_input):
         h = self.x_dnn(x)
         c = torch.zeros_like(h)
 
@@ -59,6 +59,7 @@ class FlowNet(nn.Module):
 
     def forward(self, u, h, c):
         deltas = u[:, -1].unsqueeze(-1)
+        print(deltas[1:10])
 
         # Linear mappings
         preact = self.i2h(u) + self.h2h(h)
