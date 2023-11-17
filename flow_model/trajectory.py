@@ -82,42 +82,64 @@ class RawTrajectoryDataset(Dataset):
 
 class TrajectoryDataset(Dataset):
 
-    def __init__(self, raw_data: RawTrajectoryDataset):
+    def __init__(self,
+                 raw_data: RawTrajectoryDataset,
+                 max_seq_len=-1,
+                 n_samples=1):
         self.state_dim = raw_data.state_dim
         self.control_dim = raw_data.control_dim
         self.delta = raw_data.delta
-        self.len = sum(len(s) for (_, _, _, s, _, _) in raw_data)
 
-        self.init_state = torch.empty((self.len, self.state_dim))
-        self.state = torch.empty((self.len, self.state_dim))
-
+        init_state = []
+        state = []
         rnn_input_data = []
         seq_len_data = []
+
+        rng = np.random.default_rng()
 
         k_tr = 0
 
         for (x0, x0_n, t, y, y_n, u) in raw_data:
             y += y_n
-            self.init_state[k_tr:k_tr + len(y)] = x0 + x0_n
+            x0 += x0_n
+
+            if max_seq_len == -1:
+                for k_s, y_s in enumerate(y):
+                    rnn_input, rnn_input_len = self.process_example(
+                        0, k_s, t, u, self.delta)
+
+                    init_state.append(x0)
+                    state.append(y_s)
+                    seq_len_data.append(rnn_input_len)
+                    rnn_input_data.append(rnn_input)
+
+                continue
 
             for k_s, y_s in enumerate(y):
-                self.state[k_tr + k_s] = y_s
+                end_idxs = rng.integers(min(max_seq_len,
+                                            len(y) - k_s),
+                                        size=(n_samples, ))
 
-                rnn_input, rnn_input_len = self.process_example(
-                    k_s, t, u, self.delta)
+                for k_e in end_idxs:
+                    rnn_input, rnn_input_len = self.process_example(
+                        k_s, k_s + k_e, t, u, self.delta)
 
-                seq_len_data.append(rnn_input_len)
-                rnn_input_data.append(rnn_input)
+                    init_state.append(y_s)
+                    state.append(y[k_s + k_e])
+                    seq_len_data.append(rnn_input_len)
+                    rnn_input_data.append(rnn_input)
 
-            k_tr += len(y)
-
+        self.init_state = torch.stack(init_state).type(
+            torch.get_default_dtype())
+        self.state = torch.stack(state).type(torch.get_default_dtype())
         self.rnn_input = torch.stack(rnn_input_data).type(
             torch.get_default_dtype())
         self.seq_lens = torch.tensor(seq_len_data, dtype=torch.long)
 
+        self.len = len(init_state)
+
     @staticmethod
-    def process_example(end_idx, t, u, delta):
-        start_idx = 0
+    def process_example(start_idx, end_idx, t, u, delta):
         init_time = 0.
 
         u_start_idx = int(np.floor((t[start_idx] - init_time) / delta))

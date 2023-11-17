@@ -158,8 +158,8 @@ class ExperimentData:
     def dims(self):
         return (self.train_data.state_dim, self.train_data.control_dim)
 
-    def get_datasets(self):
-        train_ds = TrajectoryDataset(self.train_data)
+    def get_datasets(self, max_seq_len, n_samples):
+        train_ds = TrajectoryDataset(self.train_data, max_seq_len, n_samples)
         val_ds = TrajectoryDataset(self.val_data)
         test_ds = TrajectoryDataset(self.test_data)
 

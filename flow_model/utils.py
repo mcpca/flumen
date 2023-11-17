@@ -96,6 +96,19 @@ def get_arg_parser():
                     help="Use batch normalisation in encoder and decoder.")
 
     ap.add_argument(
+        '--max_seq_len',
+        type=max_seq_len,
+        help="Maximum length of the RNN sequences "
+        "(for semigroup augmentation). No augmentation if equal to -1.",
+        default=-1)
+
+    ap.add_argument('--samples_per_state',
+                    type=positive_int,
+                    help="Number of samples per state measurement "
+                    "(if using semigroup augmentation)",
+                    default=1)
+
+    ap.add_argument(
         '--whiten_data',
         action='store_true',
         help='Apply whitening normalization to the data before training.')
@@ -137,6 +150,14 @@ def nonnegative_float(value):
 
     if value < 0:
         raise ArgumentTypeError(f"{value} is not a nonnegative float")
+
+    return value
+
+
+def max_seq_len(value):
+    value = int(value)
+    if value <= 0 and value != -1:
+        raise ArgumentTypeError("max_seq_len must be a positive integer or -1")
 
     return value
 
