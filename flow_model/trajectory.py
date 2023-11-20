@@ -102,7 +102,6 @@ class TrajectoryDataset(Dataset):
         for (x0, x0_n, t, y, y_n, u) in raw_data:
             y += y_n
             x0 += x0_n
-
             if max_seq_len == -1:
                 for k_s, y_s in enumerate(y):
                     rnn_input, rnn_input_len = self.process_example(
@@ -113,21 +112,28 @@ class TrajectoryDataset(Dataset):
                     seq_len_data.append(rnn_input_len)
                     rnn_input_data.append(rnn_input)
 
-                continue
+            else:
+                for k_s, y_s in enumerate(y):
+                    # find index of last relevant state sample
+                    times = (t - t[k_s] - max_seq_len * self.delta)
+                    times[times > 0] = 0.
+                    k_l = times.argmax().item()
 
-            for k_s, y_s in enumerate(y):
-                end_idxs = rng.integers(min(max_seq_len,
-                                            len(y) - k_s),
-                                        size=(n_samples, ))
+                    if k_l == k_s:
+                        end_idxs = (0, )
+                    else:
+                        end_idxs = rng.choice(k_l - k_s,
+                                              size=min(n_samples, k_l - k_s),
+                                              replace=False)
 
-                for k_e in end_idxs:
-                    rnn_input, rnn_input_len = self.process_example(
-                        k_s, k_s + k_e, t, u, self.delta)
+                    for k_e in end_idxs:
+                        rnn_input, rnn_input_len = self.process_example(
+                            k_s, k_s + k_e, t, u, self.delta)
 
-                    init_state.append(y_s)
-                    state.append(y[k_s + k_e])
-                    seq_len_data.append(rnn_input_len)
-                    rnn_input_data.append(rnn_input)
+                        init_state.append(y_s)
+                        state.append(y[k_s + k_e])
+                        seq_len_data.append(rnn_input_len)
+                        rnn_input_data.append(rnn_input)
 
         self.init_state = torch.stack(init_state).type(
             torch.get_default_dtype())
