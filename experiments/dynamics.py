@@ -79,7 +79,8 @@ class HodgkinHuxleyFS(Dynamics):
     def __init__(self):
         super().__init__(4, 1)
 
-        self.time_scale = 100
+        self.time_scale = 100.
+        self.v_scale = 100.
 
         # Parameters follow
         #   A. G. Giannari and A. Astolfi, ‘Model design for networks of
@@ -99,7 +100,7 @@ class HodgkinHuxleyFS(Dynamics):
         v, n, m, h = x
 
         # denormalise first state variable
-        v *= 100.
+        v *= self.v_scale
 
         dv = (u.item() - self.g_k * n**4 *
               (v - self.v_k) - self.g_na * m**3 * h *
@@ -128,7 +129,8 @@ class HodgkinHuxleyRSA(Dynamics):
     def __init__(self):
         super().__init__(5, 1)
 
-        self.time_scale = 100
+        self.time_scale = 100.
+        self.v_scale = 100.
 
         # Parameters follow
         #   A. G. Giannari and A. Astolfi, ‘Model design for networks of
@@ -150,7 +152,7 @@ class HodgkinHuxleyRSA(Dynamics):
         v, p, n, m, h = x
 
         # denormalise first state variable
-        v *= 100.
+        v *= self.v_scale
 
         dv = (u.item() - (self.g_k * n**4 + self.g_m * p) *
               (v - self.v_k) - self.g_na * m**3 * h *
@@ -184,7 +186,8 @@ class HodgkinHuxleyIB(Dynamics):
     def __init__(self):
         super().__init__(7, 1)
 
-        self.time_scale = 100
+        self.time_scale = 100.
+        self.v_scale = 100.
 
         # Parameters follow
         #   A. G. Giannari and A. Astolfi, ‘Model design for networks of
@@ -208,7 +211,7 @@ class HodgkinHuxleyIB(Dynamics):
         v, p, q, s, n, m, h = x
 
         # denormalise first state variable
-        v *= 100.
+        v *= self.v_scale
 
         dv = (u.item() - (self.g_k * n**4 + self.g_m * p) *
               (v - self.v_k) - self.g_ca * q**2 * s *
@@ -245,3 +248,64 @@ class HodgkinHuxleyIB(Dynamics):
 
         return tuple(self.time_scale * dx
                      for dx in (dv, dp, dq, ds, dn, dm, dh))
+
+
+class HodgkinHuxleyFFE(Dynamics):
+    """
+    Two RSA neurons coupled in feedforward with an electrical synapse.
+    """
+
+    def __init__(self):
+        super().__init__(10, 1)
+
+        self.rsa = HodgkinHuxleyRSA()
+        self.eps = 0.1
+
+    def _dx(self, x, u):
+        x_in = x[:5]
+        x_out = x[5:]
+        delta = self.rsa.v_scale * (x_in[0] - x_out[0])
+
+        dx_in = self.rsa._dx(x_in, u)
+        dx_out = self.rsa._dx(x_out, self.eps * delta)
+
+        return (*dx_in, *dx_out)
+
+
+class HodgkinHuxleyFBE(Dynamics):
+    """
+    Two RSA neurons coupled with an electrical synapse in feedfoward and
+    a chemical synapse in feedback.
+    """
+
+    def __init__(self):
+        super().__init__(11, 1)
+
+        self.rsa = HodgkinHuxleyRSA()
+
+        self.eps_el = 0.1
+        self.eps_ch = 0.5
+
+        self.v_syn = 20.
+        self.tau_r = 0.5
+        self.tau_d = 8.
+        self.v0 = -20.
+
+    def _dx(self, x, u):
+        x_in = x[:5]
+        x_out = x[5:-1]
+        r = x[-1]
+
+        v_in = self.rsa.v_scale * x_in[0]
+        v_out = self.rsa.v_scale * x_out[0]
+
+        delta_el = v_in - v_out
+        delta_ch = 20. - v_out
+
+        dx_in = self.rsa._dx(x_in, u + r * self.eps_ch * delta_ch)
+        dx_out = self.rsa._dx(x_out, self.eps_el * delta_el)
+
+        dr = (1 / self.tau_r - 1 / self.tau_d) * (1. - r) / (
+            1. + np.exp(-v_out + self.v0)) - r / self.tau_d
+
+        return (*dx_in, *dx_out, self.rsa.time_scale * dr)
