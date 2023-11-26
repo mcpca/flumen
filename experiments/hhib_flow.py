@@ -1,11 +1,11 @@
 import torch
-from dynamics import HodgkinHuxleyFS
+from dynamics import HodgkinHuxleyIB
 from sequence_generators import UniformSqWave
-from initial_state import HHFSInitialState
+from initial_state import HHIBInitialState
 
 from generate_data import parse_args, generate
 
-from math import log
+from numpy import ceil
 from scipy.signal import find_peaks
 
 
@@ -14,7 +14,7 @@ def rejection_sampling(data):
     for (k, y) in enumerate(data.state):
         p = y[:, 0].flatten()
         p_min = p.min()
-        p = 0.01 + ((p - p_min) / (p.max() - p_min))
+        p = 1e-4 + ((p - p_min) / (p.max() - p_min))
 
         likelihood_ratio = p / torch.mean(p)
         lr_bound = torch.max(likelihood_ratio)
@@ -34,9 +34,14 @@ def rejection_sampling(data):
 def main():
     args = parse_args()
 
-    dynamics = HodgkinHuxleyFS()
-    control_generator = UniformSqWave(period=10)
-    initial_state = HHFSInitialState()
+    dynamics = HodgkinHuxleyIB()
+
+    # Inputs are piecewise constant signals with 100 ms period
+    # and uniformly distributed amplitudes between 0 and 1 uA.
+    period = int(ceil(100. / (dynamics.time_scale * args.control_delta)).item())
+    control_generator = UniformSqWave(period=period)
+
+    initial_state = HHIBInitialState()
 
     generate(args,
              dynamics,

@@ -259,12 +259,14 @@ class HodgkinHuxleyFFE(Dynamics):
         super().__init__(10, 1)
 
         self.rsa = HodgkinHuxleyRSA()
+        self.v_scale = self.rsa.v_scale
+        self.time_scale = self.rsa.time_scale
         self.eps = 0.1
 
     def _dx(self, x, u):
         x_in = x[:5]
         x_out = x[5:]
-        delta = self.rsa.v_scale * (x_in[0] - x_out[0])
+        delta = self.v_scale * (x_in[0] - x_out[0])
 
         dx_in = self.rsa._dx(x_in, u)
         dx_out = self.rsa._dx(x_out, self.eps * delta)
@@ -282,6 +284,8 @@ class HodgkinHuxleyFBE(Dynamics):
         super().__init__(11, 1)
 
         self.rsa = HodgkinHuxleyRSA()
+        self.v_scale = self.rsa.v_scale
+        self.time_scale = self.rsa.time_scale
 
         self.eps_el = 0.1
         self.eps_ch = 0.5
@@ -296,11 +300,11 @@ class HodgkinHuxleyFBE(Dynamics):
         x_out = x[5:-1]
         r = x[-1]
 
-        v_in = self.rsa.v_scale * x_in[0]
-        v_out = self.rsa.v_scale * x_out[0]
+        v_in = self.v_scale * x_in[0]
+        v_out = self.v_scale * x_out[0]
 
         delta_el = v_in - v_out
-        delta_ch = 20. - v_out
+        delta_ch = self.v_syn - v_out
 
         dx_in = self.rsa._dx(x_in, u + r * self.eps_ch * delta_ch)
         dx_out = self.rsa._dx(x_out, self.eps_el * delta_el)
@@ -308,4 +312,4 @@ class HodgkinHuxleyFBE(Dynamics):
         dr = (1 / self.tau_r - 1 / self.tau_d) * (1. - r) / (
             1. + np.exp(-v_out + self.v0)) - r / self.tau_d
 
-        return (*dx_in, *dx_out, self.rsa.time_scale * dr)
+        return (*dx_in, *dx_out, self.time_scale * dr)

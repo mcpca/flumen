@@ -5,16 +5,22 @@ from initial_state import HHFBEInitialState
 
 from generate_data import parse_args, generate
 
-from math import log
+from numpy import ceil
 from scipy.signal import find_peaks
 
 
 # Downsample trajectories, focusing on the peaks
 def rejection_sampling(data):
     for (k, y) in enumerate(data.state):
-        p = (y[:, 0] + y[:, 5]).flatten()
-        p_min = p.min()
-        p = 0.01 + ((p - p_min) / (p.max() - p_min))
+        p_1 = y[:, 0].flatten()
+        p_min = p_1.min()
+        p_1 = ((p_1 - p_min) / (p_1.max() - p_min))
+
+        p_2 = y[:, 5].flatten()
+        p_min = p_2.min()
+        p_2 = ((p_2 - p_min) / (p_2.max() - p_min))
+
+        p = torch.maximum(p_1, p_2)
 
         likelihood_ratio = p / torch.mean(p)
         lr_bound = torch.max(likelihood_ratio)
@@ -36,7 +42,12 @@ def main():
     args = parse_args()
 
     dynamics = HodgkinHuxleyFBE()
-    control_generator = UniformSqWave(period=10)
+
+    # Inputs are piecewise constant signals with 100 ms period
+    # and uniformly distributed amplitudes between 0 and 1 uA.
+    period = int(ceil(100. / (dynamics.time_scale * args.control_delta)).item())
+    control_generator = UniformSqWave(period=period)
+
     initial_state = HHFBEInitialState()
 
     generate(args,
