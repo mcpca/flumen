@@ -52,6 +52,7 @@ class HHFFEInitialState(InitialStateGenerator):
     def _sample_impl(self):
         x0 = self.rng.uniform(size=(10, ))
         x0[0] = 2. * x0[0] - 1.
+        x0[5] = 2. * x0[5] - 1.
 
         return x0
 
@@ -64,6 +65,7 @@ class HHFBEInitialState(InitialStateGenerator):
     def _sample_impl(self):
         x0 = self.rng.uniform(size=(11, ))
         x0[0] = 2. * x0[0] - 1.
+        x0[5] = 2. * x0[5] - 1.
 
         return x0
 
