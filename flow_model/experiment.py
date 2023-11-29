@@ -23,9 +23,10 @@ def save_path(root, dir, timestamp, train_id):
     return path, file_name
 
 
-def instantiate_model(args, state_dim, control_dim):
+def instantiate_model(args, state_dim, control_dim, output_dim):
     return CausalFlowModel(state_dim=state_dim,
                            control_dim=control_dim,
+                           output_dim=output_dim,
                            control_rnn_size=args.control_rnn_size,
                            control_rnn_depth=args.control_rnn_depth,
                            encoder_size=args.encoder_size,
@@ -115,7 +116,7 @@ class Experiment:
         x0[:] = (x0 - self.td_mean) @ self.td_std_inv
         with torch.no_grad():
             y_pred = model(x0, u, deltas).numpy()
-        y_pred[:] = self.td_mean + y_pred @ self.td_std
+        # y_pred[:] = self.td_mean + y_pred @ self.td_std
 
         return y_pred
 

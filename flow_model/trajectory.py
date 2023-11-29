@@ -9,7 +9,9 @@ class RawTrajectoryDataset(Dataset):
                  data,
                  state_dim,
                  control_dim,
+                 output_dim,
                  delta,
+                 output_mask,
                  noise_std=0.,
                  **kwargs):
         self.__dict__.update(kwargs)
@@ -17,7 +19,9 @@ class RawTrajectoryDataset(Dataset):
         n_traj = len(data)
         self.state_dim = state_dim
         self.control_dim = control_dim
+        self.output_dim = output_dim
         self.delta = delta
+        self.mask = output_mask
 
         self.init_state = torch.empty(
             (n_traj, self.state_dim)).type(torch.get_default_dtype())
@@ -68,6 +72,7 @@ class RawTrajectoryDataset(Dataset):
         return cls(data,
                    *generator.dims(),
                    delta=generator._delta,
+                   output_mask=generator._dyn.mask,
                    generator=generator,
                    noise_std=noise_std)
 
@@ -86,9 +91,13 @@ class TrajectoryDataset(Dataset):
                  raw_data: RawTrajectoryDataset,
                  max_seq_len=-1,
                  n_samples=1):
+
         self.state_dim = raw_data.state_dim
         self.control_dim = raw_data.control_dim
+        self.output_dim = raw_data.output_dim
         self.delta = raw_data.delta
+
+        mask = tuple(bool(v) for v in raw_data.mask)
 
         init_state = []
         state = []
@@ -102,13 +111,16 @@ class TrajectoryDataset(Dataset):
         for (x0, x0_n, t, y, y_n, u) in raw_data:
             y += y_n
             x0 += x0_n
+
             if max_seq_len == -1:
                 for k_s, y_s in enumerate(y):
                     rnn_input, rnn_input_len = self.process_example(
                         0, k_s, t, u, self.delta)
 
+                    s = y_s.view(1, -1)[:, mask].reshape(-1)
+
                     init_state.append(x0)
-                    state.append(y_s)
+                    state.append(s)
                     seq_len_data.append(rnn_input_len)
                     rnn_input_data.append(rnn_input)
 
@@ -131,7 +143,7 @@ class TrajectoryDataset(Dataset):
                             k_s, k_s + k_e, t, u, self.delta)
 
                         init_state.append(y_s)
-                        state.append(y[k_s + k_e])
+                        state.append(y[k_s + k_e, mask])
                         seq_len_data.append(rnn_input_len)
                         rnn_input_data.append(rnn_input)
 

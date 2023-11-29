@@ -156,7 +156,8 @@ class ExperimentData:
          self.test_data) = generator._generate_raw()
 
     def dims(self):
-        return (self.train_data.state_dim, self.train_data.control_dim)
+        return (self.train_data.state_dim, self.train_data.control_dim,
+                self.train_data.output_dim)
 
     def get_datasets(self, max_seq_len, n_samples):
         train_ds = TrajectoryDataset(self.train_data, max_seq_len, n_samples)

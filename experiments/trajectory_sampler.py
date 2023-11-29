@@ -49,8 +49,7 @@ class TrajectorySampler:
 
         t_samples = self._init_time + (time_horizon - self._init_time) * lhs(
             1, n_samples).ravel()
-        t_samples = np.append(t_samples, [self._init_time])
-        t_samples = np.sort(t_samples)
+        t_samples = np.sort(np.append(t_samples, [self._init_time]))
 
         traj = solve_ivp(
             f,

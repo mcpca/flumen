@@ -3,15 +3,18 @@ import numpy as np
 
 class Dynamics:
 
-    def __init__(self, state_dim, control_dim):
+    def __init__(self, state_dim, control_dim, mask=None):
         self.n = state_dim
         self.m = control_dim
+
+        self.mask = mask if mask is not None else self.n * (1, )
+        self.p = sum(self.mask)
 
     def __call__(self, x, u):
         return self._dx(x, u)
 
     def dims(self):
-        return (self.n, self.m)
+        return (self.n, self.m, self.p)
 
 
 class LinearSys(Dynamics):
@@ -77,7 +80,7 @@ class Pendulum(Dynamics):
 class HodgkinHuxleyFS(Dynamics):
 
     def __init__(self):
-        super().__init__(4, 1)
+        super().__init__(4, 1, (1, 0, 0, 0))
 
         self.time_scale = 100.
         self.v_scale = 100.
@@ -127,7 +130,7 @@ class HodgkinHuxleyFS(Dynamics):
 class HodgkinHuxleyRSA(Dynamics):
 
     def __init__(self):
-        super().__init__(5, 1)
+        super().__init__(5, 1, (1, 0, 0, 0, 0))
 
         self.time_scale = 100.
         self.v_scale = 100.
@@ -184,7 +187,7 @@ class HodgkinHuxleyRSA(Dynamics):
 class HodgkinHuxleyIB(Dynamics):
 
     def __init__(self):
-        super().__init__(7, 1)
+        super().__init__(7, 1, (1, 0, 0, 0, 0, 0, 0))
 
         self.time_scale = 100.
         self.v_scale = 100.
@@ -256,7 +259,7 @@ class HodgkinHuxleyFFE(Dynamics):
     """
 
     def __init__(self):
-        super().__init__(10, 1)
+        super().__init__(10, 1, (1, 0, 0, 0, 0, 1, 0, 0, 0, 0))
 
         self.rsa = HodgkinHuxleyRSA()
         self.v_scale = self.rsa.v_scale
@@ -281,7 +284,7 @@ class HodgkinHuxleyFBE(Dynamics):
     """
 
     def __init__(self):
-        super().__init__(11, 1)
+        super().__init__(11, 1, (1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0))
 
         self.rsa = HodgkinHuxleyRSA()
         self.v_scale = self.rsa.v_scale

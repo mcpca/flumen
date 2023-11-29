@@ -7,6 +7,7 @@ class CausalFlowModel(nn.Module):
     def __init__(self,
                  state_dim,
                  control_dim,
+                 output_dim,
                  control_rnn_size,
                  control_rnn_depth,
                  encoder_size,
@@ -18,6 +19,8 @@ class CausalFlowModel(nn.Module):
 
         self.state_dim = state_dim
         self.control_dim = control_dim
+        self.output_dim = output_dim
+
         self.control_rnn_size = control_rnn_size
 
         self.u_rnn = torch.nn.LSTM(
@@ -37,7 +40,7 @@ class CausalFlowModel(nn.Module):
 
         u_dnn_isz = control_rnn_size
         self.u_dnn = FFNet(in_size=u_dnn_isz,
-                           out_size=state_dim,
+                           out_size=output_dim,
                            hidden_size=decoder_depth *
                            (decoder_size * u_dnn_isz, ),
                            use_batch_norm=use_batch_norm)
