@@ -184,4 +184,4 @@ def pack_model_inputs(x0, t, u, delta):
                                                        batch_first=True,
                                                        enforce_sorted=True)
 
-    return x0, t, u_packed, rnn_inputs[:, :-1, -1].unsqueeze(-1)
+    return x0, t, u_packed, rnn_inputs[:, :lengths[0], -1].unsqueeze(-1)
