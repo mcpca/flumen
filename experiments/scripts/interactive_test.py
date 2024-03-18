@@ -17,6 +17,9 @@ def parse_args():
     ap.add_argument('--print_info',
                     action='store_true',
                     help="Print training metadata and quit")
+    ap.add_argument('--plot_loss',
+                    action='store_true',
+                    help="Plot loss and quit")
 
     return ap.parse_args()
 
@@ -37,41 +40,46 @@ def main():
     model = experiment.load_model()
 
     fig, ax = plt.subplots()
-    ax.semilogy(experiment.train_loss, label='Train loss')
-    ax.semilogy(experiment.val_loss, label='Validation loss')
-    ax.semilogy(experiment.test_loss, label='Test loss')
+    ax.semilogy(experiment.train_loss[1:], label='Train loss')
+    ax.semilogy(experiment.val_loss[1:], label='Validation loss')
+    ax.semilogy(experiment.test_loss[1:], label='Test loss')
     ax.legend()
-    ax.vlines(np.argmin(experiment.val_loss),
+    ax.vlines(np.argmin(experiment.val_loss[1:]),
               ymin=0,
-              ymax=np.max(experiment.test_loss),
+              ymax=np.max(experiment.test_loss[1:]),
               colors='r',
               linestyles='dashed')
     ax.set_xlabel('Training epochs')
     fig.tight_layout()
-    fig.savefig('loss.pdf')
     plt.show()
+
+    if args.plot_loss:
+        return
 
     model.eval()
 
-    trajectory_generator: TrajectorySampler = experiment.generator.sampler
-    delta = trajectory_generator._delta
+    sampler: TrajectorySampler = experiment.generator.sampler
+    sampler.reset_rngs()
+    delta = sampler._delta
 
-    fig, ax = plt.subplots(1 + model.state_dim, 1, sharex=True)
+    fig, ax = plt.subplots(1 + model.output_dim, 1, sharex=True)
     fig.canvas.mpl_connect('close_event', on_close_window)
     plt.ion()
 
     with torch.no_grad():
         while True:
-            time_horizon=4 * experiment.generator.time_horizon
+            time_horizon = 4 * experiment.generator.time_horizon
 
-            x0, t, y, u = trajectory_generator.get_example(
+            x0, t, y, u = sampler.get_example(
                 time_horizon=time_horizon,
-                n_samples=int(1 + 1000 * time_horizon))
+                n_samples=int(1 + 100 * time_horizon))
 
             x0_feed, t_feed, u_feed, deltas_feed = pack_model_inputs(
                 x0, t, u, delta)
 
             y_pred = experiment.predict(model, x0_feed, u_feed, deltas_feed)
+
+            y = y[:, tuple(bool(v) for v in sampler._dyn.mask)]
 
             sq_error = np.square(y - np.flip(y_pred, 0))
             print(np.mean(sq_error))
@@ -83,7 +91,9 @@ def main():
 
             ax[0].legend()
 
-            ax[-1].step(np.arange(0., time_horizon + delta, delta), u)
+            ax[-1].step(np.arange(0., time_horizon, delta),
+                        u[:-1],
+                        where='post')
             ax[-1].set_ylabel("$u$")
             ax[-1].set_xlabel("$t$")
 

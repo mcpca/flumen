@@ -16,8 +16,8 @@ from os.path import isfile
 
 PREFIX = 'mse_time_horizon_'
 
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
 plt.rc('axes', labelsize=14)
 TICK_SIZE = 11
 plt.rc('xtick', labelsize=TICK_SIZE)
@@ -80,8 +80,9 @@ def compute_loss_vals(args, experiment):
                                                  noise_std=0.)
 
         for (x0, _, t, y, _, u) in dset_raw:
-            x0_p, _, u_p = pack_model_inputs(x0, t, u.numpy(), delta)
-            y_p = np.flip(experiment.predict(model, x0_p, u_p), 0)
+            x0_p, _, u_p, d_p = pack_model_inputs(x0, t, u.numpy(), delta)
+            y_p = experiment.predict(model, x0_p, u_p, d_p)
+            y_p = np.flip(y_p, 0)
             loss_vals.append([time_horizon, np.mean(np.square(y_p - y.numpy()))])
 
     return pd.DataFrame(loss_vals, columns=['Time horizon', 'Loss'])

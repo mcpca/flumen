@@ -17,11 +17,11 @@ from os.path import dirname, isfile
 
 PREFIX = 'mse_new_inputs_'
 
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
 
-plt.rc('axes', labelsize=18)
-TICK_SIZE = 14
+plt.rc('axes', labelsize=14)
+TICK_SIZE = 12
 plt.rc('xtick', labelsize=TICK_SIZE)
 plt.rc('ytick', labelsize=TICK_SIZE)
 
@@ -68,20 +68,25 @@ def compute_loss_vals(args, experiment: Experiment):
     delta = generator_p._delta
     generator_q = TrajectorySampler(generator_p._dyn,
                                     delta,
-                                    SinusoidalSequence(max_freq=1.0),
+                                    SinusoidalSequence(max_freq=0.2),
                                     method='RK45')
 
     generators = {'$P_u$': generator_p, '$Q_u$': generator_q}
 
     loss_vals = []
 
+    multiplier = 1
+
     for gen_name, generator in generators.items():
         for _ in range(args.n_mc):
             x0, t, y, u = generator.get_example(
-                time_horizon=experiment.generator.time_horizon, n_samples=200)
+                time_horizon=multiplier * experiment.generator.time_horizon,
+                n_samples=multiplier * 200)
 
-            x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
-            y_pred = experiment.predict(model, x0_feed, u_feed)
+            x0_feed, t_feed, u_feed, delta_feed = pack_model_inputs(
+                x0, t, u, delta)
+
+            y_pred = experiment.predict(model, x0_feed, u_feed, delta_feed)
             sq_error = np.square(y - np.flip(y_pred, 0))
             loss = np.mean(np.sum(sq_error, axis=1))
 

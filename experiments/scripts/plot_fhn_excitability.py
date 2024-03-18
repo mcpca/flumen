@@ -11,13 +11,11 @@ import numpy as np
 
 from argparse import ArgumentParser
 
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
 plt.rc('axes', labelsize=16)
-TICK_SIZE = 14
-plt.rc('xtick', labelsize=TICK_SIZE)
-plt.rc('ytick', labelsize=TICK_SIZE)
-plt.rc('legend', fontsize=15)
+# TICK_SIZE = 14
+# plt.rc('xtick', labelsize=TICK_SIZE)
+# plt.rc('ytick', labelsize=TICK_SIZE)
+# plt.rc('legend', fontsize=15)
 
 
 def parse_args():
@@ -44,8 +42,7 @@ def main():
     tr_sampler: TrajectorySampler = experiment.generator.sampler
     tr_sampler.reset_rngs()
 
-    class FixedInput(
-            SequenceGenerator, ):
+    class FixedInput(SequenceGenerator):
 
         def __init__(self, amp_seq):
             super(FixedInput, self).__init__(None)
@@ -63,8 +60,6 @@ def main():
             return control_seq
 
     tr_sampler._seq_gen = FixedInput(amp_seq)
-    tr_sampler._seq_gen._rng = np.random.default_rng()
-    tr_sampler.state_generator._rng = np.random.default_rng()
     delta = tr_sampler._delta
 
     # Figure out where to shade the plots
@@ -82,9 +77,9 @@ def main():
         x0, t, y, u = tr_sampler.get_example(time_horizon=time_horizon,
                                              n_samples=1000)
 
-        x0_feed, t_feed, u_feed = pack_model_inputs(x0, t, u, delta)
+        x0_feed, t_feed, u_feed, d_feed = pack_model_inputs(x0, t, u, delta)
 
-        y_pred = experiment.predict(model, x0_feed, u_feed)
+        y_pred = experiment.predict(model, x0_feed, u_feed, d_feed)
         print(np.mean(np.square(y - np.flip(y_pred, 0))))
 
         for k, ax_ in enumerate(ax[:model.state_dim]):
@@ -93,29 +88,29 @@ def main():
                             control_times[stop.item()],
                             fc='k',
                             alpha=0.2)
-            ax_.plot(t_feed, y_pred[:, k], 'k', label='Prediction')
-            ax_.plot(t, y[:, k], 'b--', label='True state')
-            ax_.set_ylabel(f"$x_{k+1}$")
+
+            ax_.plot(t_feed, y_pred[:, k], 'orange', label='Prediction')
+            ax_.plot(t, y[:, k], '--', c='blue', label='True state')
+            ax_.set_ylabel(f"$x_{k+1}$", usetex=True)
 
         if args.plot_input:
             for (start, stop) in zip(fill_start, fill_stop):
                 ax[-1].axvspan(control_times[start.item()],
-                            control_times[stop.item()],
-                            fc='k',
-                            alpha=0.2)
+                               control_times[stop.item()],
+                               fc='k',
+                               alpha=0.2)
             ax[-1].step(np.arange(0., time_horizon + delta, delta), u)
-            ax[-1].set_ylabel("$u$")
+            ax[-1].set_ylabel("$u$", usetex=True)
 
         # if i_plot == 0:
         #     ax[0].legend(loc='upper right')
 
-        ax[-1].set_xlabel("$t$")
+        ax[-1].set_xlabel("$t$", usetex=True)
 
         fig.tight_layout()
         fig.subplots_adjust(hspace=0)
         plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
-        fig.savefig(f"prediction_{i_plot}.pdf")
-        plt.close(fig)
+        plt.show()
 
 
 if __name__ == '__main__':

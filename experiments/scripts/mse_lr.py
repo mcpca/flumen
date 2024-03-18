@@ -5,48 +5,33 @@ import matplotlib
 from matplotlib import pyplot as plt
 import sys
 
-font = {'size': 22}
-matplotlib.rc('font', **font)
+# font = {'size': 22}
+# matplotlib.rc('font', **font)
 
 
 def main():
     data = pandas.read_csv(sys.argv[1])
 
-    control_rnn_size = np.unique(np.sort(data['control_rnn_size'].to_numpy()))
+    data = data[(data['encoder_depth'] == 2) & (data['decoder_depth'] == 2)
+                & (data['lr'] > 1e-4)]
 
-    fig, axs = plt.subplots(2,
-                            int(np.ceil(len(control_rnn_size) / 2)),
-                            sharex=True,
-                            sharey=True)
+    fig, ax = plt.subplots()
 
-    fig.set_size_inches((20, 15))
+    sns.boxplot(data=data,
+                 x='lr',
+                 y='val_mse',
+                 hue='control_rnn_size',
+                 ax=ax)
 
-    for idx, crs in enumerate(control_rnn_size):
-        ax = axs.reshape(-1)[idx]
-        crs = control_rnn_size[idx]
+    ax.set_ylabel("Validation loss")
+    ax.set_xlabel("Learning rate")
 
-        sns.lineplot(data=data[data['control_rnn_size'] == crs],
-                     x='lr',
-                     y='val_mse',
-                     hue='encoder_size',
-                     ax=ax)
-
-        # ax.set_ylim(1e-3, 1e-2)
-        ax.set_title("$n_{LSTM} = "
-                     f"{crs}$")
-        ax.set_ylabel("Validation loss")
-        ax.set_xlabel("Learning rate")
-
-        if idx != 0:
-            ax.legend().remove()
-
-    first_ax = axs.reshape(-1)[0]
-    first_ax.set_xscale('log')
-    first_ax.set_yscale('log')
-    first_ax.legend(title="$n_e / dim(Z)$")
+    ax.set_yscale('log')
+    ax.legend(title="# hidden states")
 
     fig.tight_layout()
-    fig.savefig(sys.argv[2])
+    plt.show()
+    # fig.savefig(sys.argv[2])
 
 
 if __name__ == "__main__":

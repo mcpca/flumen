@@ -103,38 +103,34 @@ class TestOnData:
 
     def __init__(self, path):
         self.name = path
-        self.data: TrajectoryDataset = torch.load(path)
+        exp_data = torch.load(path)
+        self.data = TrajectoryDataset(exp_data.train_data)
         self.loss = torch.nn.MSELoss()
 
     def __call__(self, experiment: Experiment):
         model: CausalFlowModel = experiment.load_model()
-
-        data = deepcopy(self.data)
-        data.init_state[:] = (data.init_state -
-                              experiment.td_mean) @ experiment.td_std_inv
-        data.state[:] = (data.state -
-                         experiment.td_mean) @ experiment.td_std_inv
-        loader = DataLoader(data, batch_size=1024, shuffle=False)
+        loader = DataLoader(self.data, batch_size=1024, shuffle=False)
 
         rv = 0.
 
         with torch.no_grad():
-            for x0, t, y, u, lengths in loader:
+            for x0, y, u, lengths in loader:
                 sort_idxs = torch.argsort(lengths, descending=True)
 
                 x0 = x0[sort_idxs]
-                t = t[sort_idxs]
                 y = y[sort_idxs]
                 u = u[sort_idxs]
                 lengths = lengths[sort_idxs]
 
+                deltas = u[:, :lengths[0], -1].unsqueeze(-1)
+
                 u = torch.nn.utils.rnn.pack_padded_sequence(
                     u, lengths, batch_first=True, enforce_sorted=True)
 
-                y_pred = model(t, x0, u)
+                y_pred = model(x0, u, deltas)
                 rv += self.loss(y, y_pred).item()
 
-        return rv / len(self.data)
+        return rv / len(loader)
 
     def __str__(self):
         return f'test_mse_{self.name}'
