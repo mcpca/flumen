@@ -48,7 +48,6 @@ class GaussianSqWave(SequenceGenerator):
                                    size=(n_amplitude_vals, 1))
 
         control_seq = np.repeat(amp_seq, self._period, axis=0)[:n_control_vals]
-
         return control_seq
 
 
@@ -138,5 +137,5 @@ class SinusoidalSequence(SequenceGenerator):
                              np.floor((time_range[1] - time_range[0]) / delta))
         time = np.linspace(time_range[0], time_range[1], n_control_vals)
 
-        return (amplitude * np.sin(2 * np.pi * frequency * time)).reshape(
+        return (amplitude * np.sin(np.pi * frequency / delta * time)).reshape(
             (-1, 1))
