@@ -166,3 +166,4 @@ outputs/
 *.eps
 *.pdf
 *.csv
+.DS_Store
