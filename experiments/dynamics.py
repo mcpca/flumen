@@ -316,3 +316,25 @@ class HodgkinHuxleyFBE(Dynamics):
             1. + np.exp(-v_out + self.v0)) - r / self.tau_d
 
         return (*dx_in, *dx_out, self.time_scale * dr)
+
+
+class GreenshieldsTraffic(Dynamics):
+
+    def __init__(self, n, v0):
+        super().__init__(n, 1)
+
+        self.v0 = v0
+
+    def flux(self, x):
+        return self.v0 * x * (1. - x)
+
+    def _dx(self, x, u):
+        q_out = self.flux(x)
+        q0_in = self.flux(u.item())
+
+        q_in = np.roll(q_out, 1)
+        q_in[0] = q0_in
+
+        dx = self.n * (q_in - q_out)
+
+        return dx

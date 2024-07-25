@@ -80,3 +80,13 @@ class HHIBInitialState(InitialStateGenerator):
         x0[0] = 2. * x0[0] - 1.
 
         return x0
+
+
+class GreenshieldsInitialState(InitialStateGenerator):
+    
+    def __init__(self, n, rng: np.random.Generator = None):
+        self.n = n
+        self.rng = rng if rng else np.random.default_rng()
+
+    def _sample_impl(self):
+        return self.rng.uniform(0., 0.5, size=(self.n, ))
