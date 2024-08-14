@@ -320,9 +320,10 @@ class HodgkinHuxleyFBE(Dynamics):
 
 class GreenshieldsTraffic(Dynamics):
 
-    def __init__(self, n, v0):
+    def __init__(self, n, v0, dx=None):
         super().__init__(n, 1)
 
+        self.inv_step = self.n if not dx else 1. / dx
         self.v0 = v0
 
     def flux(self, x):
@@ -335,6 +336,6 @@ class GreenshieldsTraffic(Dynamics):
         q_in = np.roll(q_out, 1)
         q_in[0] = q0_in
 
-        dx = self.n * (q_in - q_out)
+        dx = self.inv_step * (q_in - q_out)
 
         return dx

@@ -83,10 +83,18 @@ class HHIBInitialState(InitialStateGenerator):
 
 
 class GreenshieldsInitialState(InitialStateGenerator):
-    
-    def __init__(self, n, rng: np.random.Generator = None):
-        self.n = n
+
+    def __init__(self, n_cells, n_sections, rng: np.random.Generator = None):
         self.rng = rng if rng else np.random.default_rng()
 
+        self.n_cells = n_cells
+        self.n_sec = n_sections
+        self.sec_size = self.n_cells // self.n_sec
+
     def _sample_impl(self):
-        return self.rng.uniform(0., 0.5, size=(self.n, ))
+        x0_vals = self.rng.uniform(0., 0.5, size=(self.n_sec, ))
+        x0 = np.empty((self.n_cells,))
+        x0[0:self.sec_size * self.n_sec] = np.repeat(x0_vals, self.sec_size)
+        x0[self.sec_size * self.n_sec:-1] = x0[self.sec_size * self.n_sec-1]
+
+        return x0
