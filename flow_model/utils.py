@@ -21,75 +21,78 @@ def print_gpu_info():
 def get_arg_parser():
     ap = ArgumentParser()
 
-    ap.add_argument('--control_rnn_size',
-                    type=positive_int,
-                    help="Size of the RNN hidden state",
-                    default=6)
+    model_args = ap.add_argument_group("Model hyperparameters")
+    opt_args = ap.add_argument_group("Optimisation hyperparameters")
 
-    ap.add_argument('--control_rnn_depth',
-                    type=positive_int,
-                    help="Depth of the RNN",
-                    default=1)
+    model_args.add_argument('--control_rnn_size',
+                            type=positive_int,
+                            help="Size of the RNN hidden state",
+                            required=True)
 
-    ap.add_argument('--encoder_size',
-                    type=positive_int,
-                    help="Size (multiplier) of the encoder layers",
-                    default=1)
+    model_args.add_argument('--control_rnn_depth',
+                            type=positive_int,
+                            help="Depth of the RNN",
+                            default=1)
 
-    ap.add_argument('--encoder_depth',
-                    type=positive_int,
-                    help="Depth of the encoder",
-                    default=2)
+    model_args.add_argument('--encoder_size',
+                            type=positive_int,
+                            help="Size (multiplier) of the encoder layers",
+                            required=True)
 
-    ap.add_argument('--decoder_size',
-                    type=positive_int,
-                    help="Size (multiplier) of the decoder layers",
-                    default=1)
+    model_args.add_argument('--encoder_depth',
+                            type=positive_int,
+                            help="Depth of the encoder",
+                            required=True)
 
-    ap.add_argument('--decoder_depth',
-                    type=positive_int,
-                    help="Depth of the decoder",
-                    default=2)
+    model_args.add_argument('--decoder_size',
+                            type=positive_int,
+                            help="Size (multiplier) of the decoder layers",
+                            required=True)
 
-    ap.add_argument('--batch_size',
-                    type=positive_int,
-                    help="Batch size for training and validation",
-                    default=1024)
+    model_args.add_argument('--decoder_depth',
+                            type=positive_int,
+                            help="Depth of the decoder",
+                            required=True)
 
-    ap.add_argument('--lr',
-                    type=positive_float,
-                    help="Initial learning rate",
-                    default=1e-3)
+    opt_args.add_argument('--batch_size',
+                          type=positive_int,
+                          help="Batch size for training and validation",
+                          required=True)
 
-    ap.add_argument('--n_epochs',
-                    type=positive_int,
-                    help="Max number of epochs",
-                    default=10000)
+    opt_args.add_argument('--lr',
+                          type=positive_float,
+                          help="Initial learning rate",
+                          required=True)
 
-    ap.add_argument('--es_patience',
-                    type=positive_int,
-                    help="Early stopping -- patience (epochs)",
-                    default=30)
+    opt_args.add_argument('--n_epochs',
+                          type=positive_int,
+                          help="Max number of epochs",
+                          required=True)
 
-    ap.add_argument('--es_delta',
-                    type=nonnegative_float,
-                    help="Early stopping -- minimum loss change",
-                    default=0.)
+    opt_args.add_argument('--es_patience',
+                          type=positive_int,
+                          help="Early stopping -- patience (epochs)",
+                          required=True)
 
-    ap.add_argument('--sched_patience',
-                    type=positive_int,
-                    help="LR Scheduler -- Patience epochs",
-                    default=10)
+    opt_args.add_argument('--es_delta',
+                          type=nonnegative_float,
+                          help="Early stopping -- minimum loss change",
+                          required=True)
 
-    ap.add_argument('--sched_cooldown',
-                    type=positive_int,
-                    help="LR scheduler -- Cooldown epochs",
-                    default=0)
+    opt_args.add_argument('--sched_patience',
+                          type=positive_int,
+                          help="LR Scheduler -- Patience epochs",
+                          required=True)
 
-    ap.add_argument('--sched_factor',
-                    type=positive_int,
-                    help="LR Scheduler -- Reduction factor",
-                    default=5)
+    opt_args.add_argument('--sched_cooldown',
+                          type=positive_int,
+                          help="LR scheduler -- Cooldown epochs",
+                          default=0)
+
+    opt_args.add_argument('--sched_factor',
+                          type=positive_int,
+                          help="LR Scheduler -- Reduction factor",
+                          required=True)
 
     ap.add_argument('--use_batch_norm',
                     action='store_true',
