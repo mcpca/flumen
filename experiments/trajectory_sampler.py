@@ -1,5 +1,4 @@
 from scipy.integrate import solve_ivp
-from pyDOE2 import lhs
 import numpy as np
 
 from dynamics import Dynamics
@@ -24,6 +23,8 @@ class TrajectorySampler:
         self.state_generator = (initial_state_generator
                                 if initial_state_generator else
                                 GaussianInitialState(self._n))
+        
+        self._rng = np.random.default_rng()
 
         self._init_time = 0.
 
@@ -33,6 +34,7 @@ class TrajectorySampler:
     def reset_rngs(self):
         self._seq_gen._rng = np.random.default_rng()
         self.state_generator.rng = np.random.default_rng()
+        self._rng = np.random.default_rng()
 
     def get_example(self, time_horizon, n_samples):
         y0 = self.state_generator.sample()
@@ -47,8 +49,7 @@ class TrajectorySampler:
 
             return self._dyn(y, u)
 
-        t_samples = self._init_time + (time_horizon - self._init_time) * lhs(
-            1, n_samples).ravel()
+        t_samples = self._init_time + (time_horizon - self._init_time) * lhs(n_samples, self._rng)
         t_samples = np.sort(np.append(t_samples, [self._init_time]))
 
         traj = solve_ivp(
@@ -63,3 +64,9 @@ class TrajectorySampler:
         t = traj.t.reshape(-1, 1)
 
         return y0, t, y, control_seq
+
+def lhs(n_samples, rng):
+    '''Performs Latin Hypercube sampling in on the unit interval.'''
+    bins_start_val = np.linspace(0., 1., n_samples + 1)[:-1]
+    samples = rng.uniform(size=(n_samples,)) / n_samples  # sample a delta for each bin
+    return bins_start_val + samples
