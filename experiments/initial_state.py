@@ -20,6 +20,16 @@ class GaussianInitialState(InitialStateGenerator):
         return self.rng.standard_normal(size=self.n)
 
 
+class UniformInitialState(InitialStateGenerator):
+
+    def __init__(self, n, rng: np.random.Generator = None):
+        self.rng = rng if rng else np.random.default_rng()
+        self.n = n
+
+    def _sample_impl(self):
+        return self.rng.uniform(size=self.n)
+
+
 class HHFSInitialState(InitialStateGenerator):
 
     def __init__(self, rng: np.random.Generator = None):

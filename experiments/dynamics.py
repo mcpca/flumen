@@ -339,3 +339,33 @@ class GreenshieldsTraffic(Dynamics):
         dx = self.inv_step * (q_in - q_out)
 
         return dx
+
+
+class TwoTank(Dynamics):
+    ''' Two tank dynamics with overflow.
+        Source: https://apmonitor.com/do/index.php/Main/LevelControl
+    '''
+
+    def __init__(self):
+        super().__init__(2, 2)
+
+        self.c1 = 0.08  # inlet valve coefficient
+        self.c2 = 0.04  # outlet valve coefficient
+
+    def _dx(self, x, u):
+        h1, h2 = x
+
+        pump = u[0]
+        valve = u[1]
+
+        dh1 = self.c1 * (1.0 - valve) * pump - self.c2 * np.sqrt(np.abs(h1))
+        dh2 = self.c1 * valve * pump + self.c2 * \
+            np.sqrt(np.abs(h1)) - self.c2 * np.sqrt(np.abs(h2))
+
+        if (h1 >= 1. and dh1 > 0.) or (h1 <= 1e-10 and dh1 < 0.):
+            dh1 = 0.
+
+        if (h2 >= 1. and dh2 > 0.) or (h2 <= 1e-10 and dh2 < 0.):
+            dh2 = 0.
+
+        return (dh1, dh2)
