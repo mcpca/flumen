@@ -167,7 +167,7 @@ class TrajectoryDataset(Dataset):
         u_seq = torch.zeros_like(u)
         u_seq[0:u_sz] = u[u_start_idx:(u_end_idx + 1)]
 
-        deltas = torch.ones_like(u_seq)
+        deltas = torch.ones((u_seq.shape[0], 1))
         t_u_end = init_time + delta * u_end_idx
         t_u_start = init_time + delta * u_start_idx
 

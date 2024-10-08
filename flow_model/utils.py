@@ -168,12 +168,12 @@ def max_seq_len(value):
 def pack_model_inputs(x0, t, u, delta):
     t = torch.Tensor(t.reshape((-1, 1))).flip(0)
     x0 = torch.Tensor(x0.reshape((1, -1))).repeat(t.shape[0], 1)
-    rnn_inputs = torch.empty((t.shape[0], u.size, 2))
+    rnn_inputs = torch.empty((t.shape[0], u.shape[0], u.shape[1] + 1))
     lengths = torch.empty((t.shape[0], ), dtype=torch.long)
 
     for idx, (t_, u_) in enumerate(zip(t, rnn_inputs)):
         control_seq = torch.from_numpy(u)
-        deltas = torch.ones_like(control_seq)
+        deltas = torch.ones((u.shape[0], 1))
 
         seq_len = 1 + int(np.floor(t_ / delta))
         lengths[idx] = seq_len

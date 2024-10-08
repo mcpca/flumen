@@ -3,17 +3,29 @@ import numpy as np
 
 class SequenceGenerator:
 
-    def __init__(self, rng: np.random.Generator = None):
+    def __init__(self, dim, rng: np.random.Generator = None):
+        self.dim = dim
         self._rng = rng if rng else np.random.default_rng()
 
     def sample(self, time_range, delta):
         return self._sample_impl(time_range, delta)
 
 
+class Product(SequenceGenerator):
+    def __init__(self, seq_gens, rng: np.random.Generator = None):
+        super().__init__(len(seq_gens), rng)
+        self._seq_gens = seq_gens
+
+    def _sample_impl(self, time_range, delta):
+        samples = tuple(g.sample(time_range, delta) for g in self._seq_gens)
+
+        return np.hstack(samples)
+
+
 class GaussianSequence(SequenceGenerator):
 
-    def __init__(self, mean=0., std=1., rng=None):
-        super(GaussianSequence, self).__init__(rng)
+    def __init__(self, mean=0., std=1., dim=1, rng=None):
+        super().__init__(dim, rng)
 
         self._mean = mean
         self._std = std
@@ -23,15 +35,15 @@ class GaussianSequence(SequenceGenerator):
                              np.floor((time_range[1] - time_range[0]) / delta))
         control_seq = self._rng.normal(loc=self._mean,
                                        scale=self._std,
-                                       size=(n_control_vals, 1))
+                                       size=(n_control_vals, self.dim))
 
         return control_seq
 
 
 class GaussianSqWave(SequenceGenerator):
 
-    def __init__(self, period, mean=0., std=1., rng=None):
-        super(GaussianSqWave, self).__init__(rng)
+    def __init__(self, period, mean=0., std=1., dim=1, rng=None):
+        super().__init__(dim, rng)
 
         self._period = period
         self._mean = mean
@@ -45,7 +57,7 @@ class GaussianSqWave(SequenceGenerator):
 
         amp_seq = self._rng.normal(loc=self._mean,
                                    scale=self._std,
-                                   size=(n_amplitude_vals, 1))
+                                   size=(n_amplitude_vals, self.dim))
 
         control_seq = np.repeat(amp_seq, self._period, axis=0)[:n_control_vals]
         return control_seq
@@ -53,8 +65,8 @@ class GaussianSqWave(SequenceGenerator):
 
 class LogNormalSqWave(SequenceGenerator):
 
-    def __init__(self, period, mean=0., std=1., rng=None):
-        super(LogNormalSqWave, self).__init__(rng)
+    def __init__(self, period, mean=0., std=1., dim=1, rng=None):
+        super().__init__(dim, rng)
 
         self._period = period
         self._mean = mean
@@ -68,7 +80,7 @@ class LogNormalSqWave(SequenceGenerator):
 
         amp_seq = self._rng.lognormal(mean=self._mean,
                                       sigma=self._std,
-                                      size=(n_amplitude_vals, 1))
+                                      size=(n_amplitude_vals, self.dim))
 
         control_seq = np.repeat(amp_seq, self._period, axis=0)[:n_control_vals]
 
@@ -77,8 +89,8 @@ class LogNormalSqWave(SequenceGenerator):
 
 class UniformSqWave(SequenceGenerator):
 
-    def __init__(self, period, min=0., max=1., rng=None):
-        super(UniformSqWave, self).__init__(rng)
+    def __init__(self, period, min=0., max=1., dim=1, rng=None):
+        super().__init__(dim, rng)
 
         self._period = period
         self._min = min
@@ -92,7 +104,7 @@ class UniformSqWave(SequenceGenerator):
 
         amp_seq = self._rng.uniform(low=self._min,
                                     high=self._max,
-                                    size=(n_amplitude_vals, 1))
+                                    size=(n_amplitude_vals, self.dim))
 
         control_seq = np.repeat(amp_seq, self._period, axis=0)[:n_control_vals]
 
@@ -101,8 +113,8 @@ class UniformSqWave(SequenceGenerator):
 
 class RandomWalkSequence(SequenceGenerator):
 
-    def __init__(self, mean=0., std=1., rng=None):
-        super(RandomWalkSequence, self).__init__(rng)
+    def __init__(self, mean=0., std=1., dim=1, rng=None):
+        super().__init__(rng)
 
         self._mean = mean
         self._std = std
@@ -113,7 +125,7 @@ class RandomWalkSequence(SequenceGenerator):
 
         control_seq = np.cumsum(self._rng.normal(loc=self._mean,
                                                  scale=self._std,
-                                                 size=(n_control_vals, 1)),
+                                                 size=(n_control_vals, self.dim)),
                                 axis=1)
 
         return control_seq
@@ -122,7 +134,7 @@ class RandomWalkSequence(SequenceGenerator):
 class SinusoidalSequence(SequenceGenerator):
 
     def __init__(self, max_freq=1.0, rng=None):
-        super(SinusoidalSequence, self).__init__(rng)
+        super().__init__(1, rng)
 
         self._amp_mean = 1.0
         self._amp_std = 1.0
