@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools >= 64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flumen"
+dynamic = ["version"]
+authors = [{name = "Miguel Aguiar", email = "aguiar@kth.se"}]
+description = "A neural architecture for approximating flows of dynamical systems with inputs"
+readme = "README.md"
+license = { file = "LICENSE" }
+dependencies = ["numpy>=1.18", "torch>=1.8.0", "scipy>=1.5"]
+requires-python = ">= 3.6"
+
+[project.urls]
+Repository = "https://github.com/mcpca/flumen.git"
+
+[project.optional-dependencies]
+experiments = ["semble"]

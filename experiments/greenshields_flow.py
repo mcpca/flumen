@@ -1,6 +1,7 @@
-from dynamics import GreenshieldsTraffic
-from sequence_generators import UniformSqWave
-from initial_state import GreenshieldsInitialState
+from semble import TrajectorySampler
+from semble.dynamics import GreenshieldsTraffic
+from semble.sequence_generators import UniformSqWave
+from semble.initial_state import GreenshieldsInitialState
 
 from generate_data import parse_args, generate
 
@@ -12,7 +13,12 @@ def main():
     control_generator = UniformSqWave(period=1, min=0., max=0.5)
     initial_state = GreenshieldsInitialState(n_cells=100, n_sections=4)
 
-    generate(args, dynamics, control_generator, initial_state)
+    sampler = TrajectorySampler(dynamics,
+                                args.control_delta,
+                                control_generator,
+                                initial_state_generator=initial_state)
+
+    generate(args, sampler)
 
 
 if __name__ == '__main__':

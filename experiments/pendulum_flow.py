@@ -1,5 +1,6 @@
-from dynamics import Pendulum
-from sequence_generators import SinusoidalSequence
+from semble import TrajectorySampler
+from semble.dynamics import Pendulum
+from semble.sequence_generators import SinusoidalSequence
 
 from generate_data import parse_args, generate
 
@@ -10,7 +11,10 @@ def main():
     dynamics = Pendulum(damping=0.01)
     control_generator = SinusoidalSequence()
 
-    generate(args, dynamics, control_generator)
+    sampler = TrajectorySampler(dynamics, args.control_delta,
+                                control_generator)
+
+    generate(args, sampler)
 
 
 if __name__ == '__main__':

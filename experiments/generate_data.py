@@ -1,12 +1,8 @@
 import torch
 
-from dynamics import Dynamics
-from sequence_generators import SequenceGenerator
-from trajectory_sampler import TrajectorySampler
-
+from semble import TrajectorySampler
 from argparse import ArgumentParser, ArgumentTypeError
-
-from flow_model import RawTrajectoryDataset, TrajectoryDataset
+from flumen import RawTrajectoryDataset, TrajectoryDataset
 
 
 def percentage(value):
@@ -65,23 +61,14 @@ def parse_args():
     return ap.parse_args()
 
 
-def generate(args,
-             dynamics: Dynamics,
-             seq_gen: SequenceGenerator,
-             initial_state_generator=None,
-             postprocess=[],
-             method='RK45'):
+def generate(args, trajectory_sampler: TrajectorySampler, postprocess=[]):
     data_generator = TrajectoryDataGenerator(
-        dynamics,
-        seq_gen,
-        control_delta=args.control_delta,
+        trajectory_sampler,
         n_trajectories=args.n_trajectories,
         n_samples=args.n_samples,
         time_horizon=args.time_horizon,
         split=args.data_split,
-        noise_std=args.noise_std,
-        initial_state_generator=initial_state_generator,
-        method=method)
+        noise_std=args.noise_std)
 
     data = data_generator.generate()
 
@@ -94,25 +81,17 @@ def generate(args,
 
 class TrajectoryDataGenerator:
 
-    def __init__(self, dynamics: Dynamics,
-                 control_generator: SequenceGenerator, control_delta,
-                 noise_std, initial_state_generator, method, n_trajectories,
+    def __init__(self, trajectory_sampler, noise_std, n_trajectories,
                  n_samples, time_horizon, split):
         if split[0] + split[1] >= 100:
             raise Exception("Invalid data split.")
 
+        self.sampler = trajectory_sampler
+
         self.split = split
-        self.control_delta = control_delta
         self.n_samples = n_samples
         self.time_horizon = time_horizon
         self.noise_std = noise_std
-
-        self.sampler = TrajectorySampler(
-            dynamics,
-            control_delta=control_delta,
-            control_generator=control_generator,
-            initial_state_generator=initial_state_generator,
-            method=method)
 
         self.n_val_t = int(n_trajectories * (split[0] / 100.))
         self.n_test_t = int(n_trajectories * (split[1] / 100.))

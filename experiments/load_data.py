@@ -2,8 +2,7 @@ import torch
 
 torch.set_default_dtype(torch.float32)
 
-from flow_model import (prepare_experiment, get_arg_parser, train,
-                        print_gpu_info)
+from flumen import (prepare_experiment, get_arg_parser, train, print_gpu_info)
 
 
 def main():

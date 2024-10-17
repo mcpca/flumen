@@ -1,6 +1,8 @@
 import numpy as np
-from sequence_generators import RandomWalkSequence
-from dynamics import LinearSys
+
+from semble import TrajectorySampler
+from semble.dynamics import LinearSys
+from semble.sequence_generators import RandomWalkSequence
 
 from generate_data import parse_args, generate
 
@@ -13,7 +15,10 @@ def main():
     dynamics = LinearSys(a_matrix, b_matrix)
     control_generator = RandomWalkSequence()
 
-    generate(args, dynamics, control_generator)
+    sampler = TrajectorySampler(dynamics, args.control_delta,
+                                control_generator)
+
+    generate(args, sampler)
 
 
 if __name__ == '__main__':

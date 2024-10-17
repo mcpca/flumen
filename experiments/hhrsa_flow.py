@@ -1,7 +1,8 @@
 import torch
-from dynamics import HodgkinHuxleyRSA
-from sequence_generators import UniformSqWave
-from initial_state import HHRSAInitialState
+
+from semble import TrajectorySampler
+from semble.dynamics import HodgkinHuxleyRSA
+from semble.sequence_generators import UniformSqWave
 
 from generate_data import parse_args, generate
 
@@ -38,19 +39,16 @@ def main():
 
     # Inputs are piecewise constant signals with 100 ms period
     # and uniformly distributed amplitudes between 0 and 1 uA.
-    period = int(ceil(100. / (dynamics.time_scale * args.control_delta)).item())
+    period = int(
+        ceil(100. / (dynamics.time_scale * args.control_delta)).item())
     control_generator = UniformSqWave(period=period)
 
-    initial_state = HHRSAInitialState()
+    sampler = TrajectorySampler(dynamics, args.control_delta,
+                                control_generator)
 
-    generate(args,
-             dynamics,
-             control_generator,
-             postprocess=[
-                 rejection_sampling,
-             ],
-             initial_state_generator=initial_state,
-             method='BDF')
+    generate(args, sampler, postprocess=[
+        rejection_sampling,
+    ])
 
 
 if __name__ == '__main__':
