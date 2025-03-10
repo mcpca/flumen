@@ -58,6 +58,8 @@ def main():
                     help="If reset_noise is set, set standard deviation ' \
                             'of the measurement noise to this value.")
 
+    ap.add_argument('--model_log_rate', type=int, default=15)
+
     sys_args = ap.parse_args()
     data_path = Path(sys_args.load_path)
 
@@ -139,6 +141,8 @@ def main():
         f"{test_loss:>16e} :: {early_stop.best_val_loss:>16e}"
     )
 
+    last_save_epoch = 0
+
     start = time.time()
 
     for epoch in range(wandb.config['n_epochs']):
@@ -161,7 +165,10 @@ def main():
 
         if early_stop.best_model:
             torch.save(model.state_dict(), model_save_dir / "state_dict.pth")
-            run.log_model(model_save_dir.as_posix(), name=model_name)
+
+            if epoch > last_save_epoch + sys_args.model_log_rate:
+                run.log_model(model_save_dir.as_posix(), name=model_name)
+                last_save_epoch = epoch
 
             run.summary["best_train"] = train_loss
             run.summary["best_val"] = val_loss
@@ -182,6 +189,9 @@ def main():
             break
 
     train_time = time.time() - start
+
+    # Log best model
+    run.log_model(model_save_dir.as_posix(), name=model_name, aliases=["best"])
 
     print(f"Training took {train_time:.2f} seconds.")
 
