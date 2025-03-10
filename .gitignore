@@ -171,3 +171,5 @@ outputs/
 wandb/
 data/
 artifacts/
+local/
+.vscode/
