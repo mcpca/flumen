@@ -11,21 +11,22 @@ from flumen.train import EarlyStopping, train_step, validate
 
 from argparse import ArgumentParser
 import time
+import re
 
 import wandb
 
 hyperparams = {
-    'control_rnn_size': 12,
+    'control_rnn_size': 64,
     'control_rnn_depth': 1,
     'encoder_size': 1,
     'encoder_depth': 2,
     'decoder_size': 1,
     'decoder_depth': 2,
     'batch_size': 128,
-    'lr': 0.001,
-    'n_epochs': 1000,
+    'lr': 7e-4,
+    'n_epochs': 2000,
     'es_patience': 20,
-    'es_delta': 1e-7,
+    'es_delta': 5e-5,
     'sched_patience': 10,
     'sched_factor': 2,
     'loss': "mse",
@@ -46,7 +47,7 @@ def main():
 
     ap.add_argument('load_path', type=str, help="Path to trajectory dataset")
 
-    ap.add_argument('name', type=str, help="Name of the experiment.")
+    ap.add_argument('name', type=str, nargs='+', help="Name of the experiment.")
 
     ap.add_argument('--reset_noise',
                     action='store_true',
@@ -63,7 +64,11 @@ def main():
     sys_args = ap.parse_args()
     data_path = Path(sys_args.load_path)
 
-    run = wandb.init(project='flumen', name=sys_args.name, config=hyperparams)
+    first_name = sys_args.name[0]
+    full_name = '_'.join(sys_args.name)
+    full_name = re.sub("[^a-zA-Z0-9_-]", '_', full_name)
+
+    run = wandb.init(project='flumen', config=hyperparams, name=full_name)
 
     with data_path.open('rb') as f:
         data = pickle.load(f)
@@ -91,11 +96,11 @@ def main():
         'data_settings': data["settings"],
         'data_args': data["args"]
     }
-    model_name = f"flow_model-{data_path.stem}-{sys_args.name}-{run.id}"
+    model_name = f"flumen-{data_path.stem}-{run.id}"
 
     # Prepare for saving the model
     model_save_dir = Path(
-        f"./outputs/{sys_args.name}/{sys_args.name}_{run.id}")
+        f"./outputs/{first_name}/{full_name}_{run.id}")
     model_save_dir.mkdir(parents=True, exist_ok=True)
 
     # Save local copy of metadata
