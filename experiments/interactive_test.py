@@ -27,6 +27,7 @@ def parse_args():
                     help="Print training metadata and quit")
     ap.add_argument('--continuous_state', action='store_true')
     ap.add_argument('--wandb', action='store_true')
+    ap.add_argument('--time_horizon', type=float, default=None)
 
     return ap.parse_args()
 
@@ -46,7 +47,7 @@ def main():
         model_path = Path(args.path)
 
     with open(model_path / "state_dict.pth", 'rb') as f:
-        state_dict = torch.load(f, weights_only=True)
+        state_dict = torch.load(f, weights_only=False, map_location='cpu')
     with open(model_path / "metadata.yaml", 'r') as f:
         metadata: dict = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -63,11 +64,16 @@ def main():
     sampler.reset_rngs()
     delta = sampler._delta
 
-    fig, ax = plt.subplots(3, 1, sharex=True)
-    fig.canvas.mpl_connect('close_event', on_close_window)
-    xx = np.linspace(0., 1., model.output_dim)
+    if args.continuous_state:
+        xx = np.linspace(0., 1., model.output_dim)
+        n_plots = 2
+    else:
+        n_plots = model.output_dim
 
-    time_horizon = metadata["data_args"]["time_horizon"]
+    fig, ax = plt.subplots(n_plots + 1, 1, sharex=True)
+    fig.canvas.mpl_connect('close_event', on_close_window)
+
+    time_horizon = args.time_horizon if args.time_horizon else metadata["data_args"]["time_horizon"]
 
     while True:
         time_integrate = time()
@@ -92,13 +98,13 @@ def main():
         y = y[:, tuple(bool(v) for v in sampler._dyn.mask)]
 
         sq_error = np.square(y - y_pred)
-        print(model.state_dim * np.mean(sq_error))
+        print(model.output_dim * np.mean(sq_error))
 
         if args.continuous_state:
             ax[0].pcolormesh(t.squeeze(), xx, y.T)
             ax[1].pcolormesh(t.squeeze(), xx, y_pred.T)
         else:
-            for k, ax_ in enumerate(ax[:model.state_dim]):
+            for k, ax_ in enumerate(ax[:model.output_dim]):
                 ax_.plot(t, y_pred[:, k], c='orange', label='Model output')
                 ax_.plot(t, y[:, k], 'b--', label='True state')
                 ax_.set_ylabel(f"$x_{k+1}$")
