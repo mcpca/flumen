@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from argparse import ArgumentParser, ArgumentTypeError
+from .model import CausalFlowModel
 
 
 def print_gpu_info():
@@ -166,25 +167,14 @@ def max_seq_len(value):
 
 
 def pack_model_inputs(x0, t, u, delta):
-    t = torch.Tensor(t.reshape((-1, 1))).flip(0)
-    x0 = torch.Tensor(x0.reshape((1, -1))).repeat(t.shape[0], 1)
-    rnn_inputs = torch.empty((t.shape[0], u.shape[0], u.shape[1] + 1))
-    lengths = torch.empty((t.shape[0], ), dtype=torch.long)
+    t = torch.Tensor(t)
+    x0 = torch.Tensor(x0.reshape((1, -1)))
+    u = torch.Tensor(u)
 
-    for idx, (t_, u_) in enumerate(zip(t, rnn_inputs)):
-        control_seq = torch.from_numpy(u)
-        deltas = torch.ones((u.shape[0], 1))
+    if len(u.shape) == 1:
+        u = u.unsqueeze(-1)
 
-        seq_len = 1 + int(np.floor(t_ / delta))
-        lengths[idx] = seq_len
-        deltas[seq_len - 1] = ((t_ - delta * (seq_len - 1)) / delta).item()
-        deltas[seq_len:] = 0.
+    skips = torch.floor(t / delta).int()
+    tau = (t - delta * skips) / delta
 
-        u_[:] = torch.hstack((control_seq, deltas))
-
-    u_packed = torch.nn.utils.rnn.pack_padded_sequence(rnn_inputs,
-                                                       lengths,
-                                                       batch_first=True,
-                                                       enforce_sorted=True)
-
-    return x0, t, u_packed, rnn_inputs[:, :lengths[0], -1].unsqueeze(-1)
+    return x0, u, skips.squeeze(), tau

@@ -73,24 +73,25 @@ def main():
     fig, ax = plt.subplots(n_plots + 1, 1, sharex=True)
     fig.canvas.mpl_connect('close_event', on_close_window)
 
-    time_horizon = args.time_horizon if args.time_horizon else metadata["data_args"]["time_horizon"]
+    time_horizon = args.time_horizon if args.time_horizon else metadata[
+        "data_args"]["time_horizon"]
 
     while True:
         time_integrate = time()
         x0, t, y, u = sampler.get_example(time_horizon=time_horizon,
                                           n_samples=int(1 +
                                                         100 * time_horizon))
+
         time_integrate = time() - time_integrate
 
         time_predict = time()
 
-        x0_feed, t_feed, u_feed, deltas_feed = pack_model_inputs(
-            x0, t, u, delta)
+        x0_feed, u_feed, skips, tau = pack_model_inputs(x0, t, u, delta)
 
         with torch.no_grad():
-            y_pred = model(x0_feed, u_feed, deltas_feed).numpy()
+            y_pred = model.forward_trajectory(x0_feed, u_feed, skips,
+                                              tau).numpy()
 
-        y_pred = np.flip(y_pred, 0)
         time_predict = time() - time_predict
 
         print(f"Timings: {time_integrate}, {time_predict}")

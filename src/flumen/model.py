@@ -66,6 +66,30 @@ class CausalFlowModel(nn.Module):
 
         return output
 
+    def forward_trajectory(self, x, u, skips, tau):
+        h0 = torch.stack(self.x_dnn(x).split(self.control_rnn_size, dim=1))
+        h = torch.empty((1, skips[-1] + 1, h0.shape[-1]))
+        c = torch.empty_like(h)
+
+        h[:, 0] = h0
+        c[:, 0] = torch.zeros_like(h0)
+
+        rnn_input = torch.hstack((u, torch.ones_like(u)))
+
+        for k in range(skips[-1]):
+            _, (h[:, k + 1], c[:,
+                               k + 1]) = self.u_rnn(rnn_input[k].unsqueeze(0),
+                                                    (h[:, k], c[:, k]))
+
+        rnn_input = torch.hstack((u[skips], tau)).unsqueeze(1)
+        h_prev, c_prev = h[:, skips, :], c[:, skips, :]
+        _, (h_last, _) = self.u_rnn(rnn_input, (h_prev, c_prev))
+
+        z = (1 - tau) * h_prev + tau * h_last
+        output = self.u_dnn(z).squeeze()
+
+        return output
+
 
 class FFNet(nn.Module):
 
