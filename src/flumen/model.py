@@ -45,21 +45,24 @@ class CausalFlowModel(nn.Module):
                            (decoder_size * u_dnn_isz, ),
                            use_batch_norm=use_batch_norm)
 
-    def forward(self, x, rnn_input, deltas):
+    def forward(self, x, rnn_input, tau):
         h0 = self.x_dnn(x)
         h0 = torch.stack(h0.split(self.control_rnn_size, dim=1))
         c0 = torch.zeros_like(h0)
 
         rnn_out_seq_packed, _ = self.u_rnn(rnn_input, (h0, c0))
-        h, h_lens = torch.nn.utils.rnn.pad_packed_sequence(rnn_out_seq_packed,
-                                                           batch_first=True)
+        h, lengths = torch.nn.utils.rnn.pad_packed_sequence(rnn_out_seq_packed,
+                                                            batch_first=True)
 
-        h_shift = torch.roll(h, shifts=1, dims=1)
-        h_shift[:, 0, :] = h0[-1]
+        # get next to last state (possibly h0)
+        h_prev = h[range(h.shape[0]), lengths - 2, :]
+        h_prev = torch.where(lengths.unsqueeze(-1) > 1, h_prev, h0[-1])
 
-        encoded_controls = (1 - deltas) * h_shift + deltas * h
-        output = self.u_dnn(encoded_controls[range(encoded_controls.shape[0]),
-                                             h_lens - 1, :])
+        h_last = h[range(h.shape[0]), lengths - 1, :]
+
+        tau = tau[range(h.shape[0]), lengths - 1, :]
+        z = (1 - tau) * h_prev + tau * h_last
+        output = self.u_dnn(z)
 
         return output
 
