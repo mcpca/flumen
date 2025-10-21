@@ -68,7 +68,7 @@ class CausalFlowModel(nn.Module):
 
     def forward_trajectory(self, x, u, skips, tau):
         h0 = torch.stack(self.x_dnn(x).split(self.control_rnn_size, dim=1))
-        h = torch.empty((1, skips[-1] + 1, h0.shape[-1]))
+        h = torch.empty((1, skips[-1] + 1, h0.shape[-1]), device=h0.device)
         c = torch.empty_like(h)
 
         h[:, 0] = h0
