@@ -57,10 +57,9 @@ class CausalFlowModel(nn.Module):
         # get next to last state (possibly h0)
         h_prev = h[range(h.shape[0]), lengths - 2, :]
         h_prev = torch.where(lengths.unsqueeze(-1) > 1, h_prev, h0[-1])
-
+        # get last state
         h_last = h[range(h.shape[0]), lengths - 1, :]
 
-        tau = tau[range(h.shape[0]), lengths - 1, :]
         z = (1 - tau) * h_prev + tau * h_last
         output = self.u_dnn(z)
 
