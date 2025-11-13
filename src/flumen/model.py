@@ -3,18 +3,19 @@ from torch import nn
 
 
 class CausalFlowModel(nn.Module):
-
-    def __init__(self,
-                 state_dim,
-                 control_dim,
-                 output_dim,
-                 control_rnn_size,
-                 control_rnn_depth,
-                 encoder_size,
-                 encoder_depth,
-                 decoder_size,
-                 decoder_depth,
-                 use_batch_norm=False):
+    def __init__(
+        self,
+        state_dim,
+        control_dim,
+        output_dim,
+        control_rnn_size,
+        control_rnn_depth,
+        encoder_size,
+        encoder_depth,
+        decoder_size,
+        decoder_depth,
+        use_batch_norm=False,
+    ):
         super(CausalFlowModel, self).__init__()
 
         self.state_dim = state_dim
@@ -32,18 +33,20 @@ class CausalFlowModel(nn.Module):
         )
 
         x_dnn_osz = control_rnn_depth * control_rnn_size
-        self.x_dnn = FFNet(in_size=state_dim,
-                           out_size=x_dnn_osz,
-                           hidden_size=encoder_depth *
-                           (encoder_size * x_dnn_osz, ),
-                           use_batch_norm=use_batch_norm)
+        self.x_dnn = FFNet(
+            in_size=state_dim,
+            out_size=x_dnn_osz,
+            hidden_size=encoder_depth * (encoder_size * x_dnn_osz,),
+            use_batch_norm=use_batch_norm,
+        )
 
         u_dnn_isz = control_rnn_size
-        self.u_dnn = FFNet(in_size=u_dnn_isz,
-                           out_size=output_dim,
-                           hidden_size=decoder_depth *
-                           (decoder_size * u_dnn_isz, ),
-                           use_batch_norm=use_batch_norm)
+        self.u_dnn = FFNet(
+            in_size=u_dnn_isz,
+            out_size=output_dim,
+            hidden_size=decoder_depth * (decoder_size * u_dnn_isz,),
+            use_batch_norm=use_batch_norm,
+        )
 
     def forward(self, x, rnn_input, tau):
         h0 = self.x_dnn(x)
@@ -51,8 +54,9 @@ class CausalFlowModel(nn.Module):
         c0 = torch.zeros_like(h0)
 
         rnn_out_seq_packed, _ = self.u_rnn(rnn_input, (h0, c0))
-        h, lengths = torch.nn.utils.rnn.pad_packed_sequence(rnn_out_seq_packed,
-                                                            batch_first=True)
+        h, lengths = torch.nn.utils.rnn.pad_packed_sequence(
+            rnn_out_seq_packed, batch_first=True
+        )
 
         # get next to last state (possibly h0)
         h_prev = h[range(h.shape[0]), lengths - 2, :]
@@ -66,24 +70,36 @@ class CausalFlowModel(nn.Module):
         return output
 
     def forward_trajectory(self, x, u, skips, tau):
-        h0 = torch.stack(self.x_dnn(x).split(self.control_rnn_size, dim=1))
-        h = torch.empty((h0.shape[0], skips[-1] + 1, h0.shape[-1]),
-                        device=h0.device)
+        h0 = torch.stack(torch.split(self.x_dnn(x), self.control_rnn_size, dim=1))
+
+        lstm_depth = h0.shape[0]
+        batch_size = h0.shape[1]
+        hsz = h0.shape[-1]
+
+        h = torch.empty((lstm_depth, batch_size, skips[-1] + 1, hsz), device=h0.device)
         c = torch.empty_like(h)
 
-        h[:, 0] = h0
-        c[:, 0] = torch.zeros_like(h0)
+        h[:, :, 0, :] = h0
+        c[:, :, 0, :] = torch.zeros_like(h0)
 
-        rnn_input = torch.hstack((u, torch.ones_like(u)))
+        rnn_input = torch.cat((u, torch.ones((batch_size, u.shape[1], 1))), dim=-1)
 
         for k in range(skips[-1]):
-            _, (h[:, k + 1], c[:,
-                               k + 1]) = self.u_rnn(rnn_input[k].unsqueeze(0),
-                                                    (h[:, k], c[:, k]))
+            _, (h[:, :, k + 1, :], c[:, :, k + 1, :]) = self.u_rnn(
+                rnn_input[:, k].unsqueeze(1), (h[:, :, k, :], c[:, :, k, :])
+            )
 
-        rnn_input = torch.hstack((u[skips], tau)).unsqueeze(1)
-        h_prev, c_prev = h[:, skips, :], c[:, skips, :]
-        _, (h_last, _) = self.u_rnn(rnn_input, (h_prev, c_prev))
+        tau = tau.unsqueeze(0).expand(batch_size, -1, -1)
+        rnn_input = torch.cat((u[:, skips], tau), dim=-1).view(-1, 1 + u.shape[-1])
+
+        h_prev, c_prev = h[:, :, skips, :], c[:, :, skips, :]
+        h_prev = h_prev.reshape(lstm_depth, -1, hsz)
+        c_prev = c_prev.reshape(lstm_depth, -1, hsz)
+
+        _, (h_last, _) = self.u_rnn(rnn_input.unsqueeze(1), (h_prev, c_prev))
+
+        h_prev = h_prev[-1].view(batch_size, -1, hsz)
+        h_last = h_last[-1].view(batch_size, -1, hsz)
 
         z = (1 - tau) * h_prev + tau * h_last
         output = self.u_dnn(z).squeeze()
@@ -92,13 +108,9 @@ class CausalFlowModel(nn.Module):
 
 
 class FFNet(nn.Module):
-
-    def __init__(self,
-                 in_size,
-                 out_size,
-                 hidden_size,
-                 activation=nn.Tanh,
-                 use_batch_norm=False):
+    def __init__(
+        self, in_size, out_size, hidden_size, activation=nn.Tanh, use_batch_norm=False
+    ):
         super(FFNet, self).__init__()
 
         self.in_size = in_size
