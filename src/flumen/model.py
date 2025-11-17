@@ -82,7 +82,9 @@ class CausalFlowModel(nn.Module):
         h[:, :, 0, :] = h0
         c[:, :, 0, :] = torch.zeros_like(h0)
 
-        rnn_input = torch.cat((u, torch.ones((batch_size, u.shape[1], 1))), dim=-1)
+        rnn_input = torch.cat(
+            (u, torch.ones((batch_size, u.shape[1], 1), device=u.device)), dim=-1
+        )
 
         for k in range(skips[-1]):
             _, (h[:, :, k + 1, :], c[:, :, k + 1, :]) = self.u_rnn(
