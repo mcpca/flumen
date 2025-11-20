@@ -76,27 +76,27 @@ class CausalFlowModel(nn.Module):
         batch_size = h0.shape[1]
         hsz = h0.shape[-1]
 
-        h = torch.empty((lstm_depth, batch_size, skips[-1] + 1, hsz), device=h0.device)
-        c = torch.empty_like(h)
-
-        h[:, :, 0, :] = h0
-        c[:, :, 0, :] = torch.zeros_like(h0)
+        h = [h0]
+        c = [torch.zeros_like(h0)]
 
         rnn_input = torch.cat(
             (u, torch.ones((batch_size, u.shape[1], 1), device=u.device)), dim=-1
         )
 
         for k in range(skips[-1]):
-            _, (h[:, :, k + 1, :], c[:, :, k + 1, :]) = self.u_rnn(
-                rnn_input[:, k].unsqueeze(1), (h[:, :, k, :], c[:, :, k, :])
-            )
+            _, (h_next, c_next) = self.u_rnn(rnn_input[:, k].unsqueeze(1), (h[k], c[k]))
+            h.append(h_next)
+            c.append(c_next)
 
         tau = tau.unsqueeze(0).expand(batch_size, -1, -1)
         rnn_input = torch.cat((u[:, skips], tau), dim=-1).view(-1, 1 + u.shape[-1])
 
-        h_prev, c_prev = h[:, :, skips, :], c[:, :, skips, :]
-        h_prev = h_prev.reshape(lstm_depth, -1, hsz)
-        c_prev = c_prev.reshape(lstm_depth, -1, hsz)
+        h = torch.stack(h, dim=2)
+        c = torch.stack(c, dim=2)
+
+        h_prev, c_prev = h[:, :, skips], c[:, :, skips]
+        h_prev = h_prev.view(lstm_depth, -1, hsz)
+        c_prev = c_prev.view(lstm_depth, -1, hsz)
 
         _, (h_last, _) = self.u_rnn(rnn_input.unsqueeze(1), (h_prev, c_prev))
 
