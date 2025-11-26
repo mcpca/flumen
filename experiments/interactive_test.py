@@ -4,7 +4,8 @@ import numpy as np
 
 from flumen import CausalFlowModel
 from flumen.utils import pack_model_inputs
-from generate_data import make_trajectory_sampler
+from semble import make_trajectory_sampler, TSamplerSpec
+from semble.dynamics import ContinuousStateDynamics
 
 from argparse import ArgumentParser
 
@@ -13,21 +14,25 @@ from pathlib import Path
 import sys
 from pprint import pprint
 from time import time
+from typing import cast
 
 
 def parse_args():
     ap = ArgumentParser()
     ap.add_argument(
-        'path',
+        "path",
         type=str,
         help="Path to .pth file "
-        "(or, if run with --wandb, path to a Weights & Biases artifact)")
-    ap.add_argument('--print_info',
-                    action='store_true',
-                    help="Print training metadata and quit")
-    ap.add_argument('--continuous_state', action='store_true')
-    ap.add_argument('--wandb', action='store_true')
-    ap.add_argument('--time_horizon', type=float, default=None)
+        "(or, if run with --wandb, path to a Weights & Biases artifact)",
+    )
+    ap.add_argument(
+        "--print_info",
+        action="store_true",
+        help="Print training metadata and quit",
+    )
+    ap.add_argument("--continuous_state", action="store_true")
+    ap.add_argument("--wandb", action="store_true")
+    ap.add_argument("--time_horizon", type=float, default=None)
 
     return ap.parse_args()
 
@@ -37,18 +42,20 @@ def main():
 
     if args.wandb:
         import wandb
+
         api = wandb.Api()
         model_artifact = api.artifact(args.path)
         model_path = Path(model_artifact.download())
 
         model_run = model_artifact.logged_by()
-        print(model_run.summary)
+        if model_run:
+            pprint(model_run.summary)
     else:
         model_path = Path(args.path)
 
-    with open(model_path / "state_dict.pth", 'rb') as f:
-        state_dict = torch.load(f, weights_only=False, map_location='cpu')
-    with open(model_path / "metadata.yaml", 'r') as f:
+    with open(model_path / "state_dict.pth", "rb") as f:
+        state_dict = torch.load(f, weights_only=False, map_location="cpu")
+    with open(model_path / "metadata.yaml", "r") as f:
         metadata: dict = yaml.load(f, Loader=yaml.FullLoader)
 
     pprint(metadata)
@@ -60,42 +67,47 @@ def main():
     model.load_state_dict(state_dict)
     model.eval()
 
-    sampler = make_trajectory_sampler(metadata["data_settings"])
+    sampler_spec: TSamplerSpec = metadata["data_settings"]
+    sampler = make_trajectory_sampler(sampler_spec)
     sampler.reset_rngs()
     delta = sampler._delta
 
     if args.continuous_state:
-        xx = np.linspace(0., 1., model.output_dim)
+        dynamics = cast(ContinuousStateDynamics, sampler._dyn)
+        xx = dynamics.get_space_axis()
         n_plots = 2
     else:
         n_plots = model.output_dim
+        xx = None
 
     fig, ax = plt.subplots(n_plots + 1, 1, sharex=True)
-    fig.canvas.mpl_connect('close_event', on_close_window)
+    fig.canvas.mpl_connect("close_event", on_close_window)
 
-    time_horizon = args.time_horizon if args.time_horizon else metadata[
-        "data_args"]["time_horizon"]
+    time_horizon = (
+        args.time_horizon
+        if args.time_horizon
+        else metadata["data_args"]["time_horizon"]
+    )
 
     while True:
         time_integrate = time()
-        x0, t, y, u = sampler.get_example(time_horizon=time_horizon,
-                                          n_samples=int(1 +
-                                                        100 * time_horizon))
+        x0, t, y, u = sampler.get_example(
+            time_horizon=time_horizon, n_samples=int(1 + 3 * time_horizon)
+        )
 
         time_integrate = time() - time_integrate
 
-        time_predict = time()
-
-        x0_feed, u_feed, skips, tau = pack_model_inputs(x0, t, u, delta)
-
         with torch.no_grad():
-            y_pred = model.forward_trajectory(x0_feed, u_feed, skips,
-                                              tau).numpy()
+            time_predict = time()
 
-        time_predict = time() - time_predict
+            x0_feed, u_feed, skips, tau = pack_model_inputs(x0, t, u, delta)
+            y_pred = model.forward_trajectory(x0_feed, u_feed, skips, tau)
+
+            time_predict = time() - time_predict
 
         print(f"Timings: {time_integrate}, {time_predict}")
 
+        y_pred = y_pred.numpy()
         y = y[:, tuple(bool(v) for v in sampler._dyn.mask)]
 
         sq_error = np.square(y - y_pred)
@@ -105,12 +117,12 @@ def main():
             ax[0].pcolormesh(t.squeeze(), xx, y.T)
             ax[1].pcolormesh(t.squeeze(), xx, y_pred.T)
         else:
-            for k, ax_ in enumerate(ax[:model.output_dim]):
-                ax_.plot(t, y_pred[:, k], c='orange', label='Model output')
-                ax_.plot(t, y[:, k], 'b--', label='True state')
-                ax_.set_ylabel(f"$x_{k+1}$")
+            for k, ax_ in enumerate(ax[: model.output_dim]):
+                ax_.plot(t, y_pred[:, k], c="orange", label="Model output")
+                ax_.plot(t, y[:, k], "b--", label="True state")
+                ax_.set_ylabel(f"$x_{k + 1}$")
 
-        ax[-1].step(np.arange(0., time_horizon, delta), u[:-1], where='post')
+        ax[-1].step(np.arange(0.0, time_horizon, delta), u[:-1], where="post")
         ax[-1].set_ylabel("$u$")
         ax[-1].set_xlabel("$t$")
 
@@ -129,9 +141,9 @@ def main():
             ax_.clear()
 
 
-def on_close_window(ev):
+def on_close_window(_):
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
