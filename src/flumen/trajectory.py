@@ -1,33 +1,43 @@
 import numpy as np
 import torch
+from torch import Tensor
 from torch.utils.data import Dataset
 
 
 class RawTrajectoryDataset(Dataset):
+    n_traj: int
+    state_dim: int
+    control_dim: int
+    output_dim: int
+    mask: tuple[int, ...]
+    init_state: Tensor
+    init_state_noise: Tensor
+    time: list[Tensor]
+    state: list[Tensor]
+    state_noise: list[Tensor]
+    control_seq: list[Tensor]
+
     def __init__(
         self,
-        data,
-        state_dim,
-        control_dim,
-        output_dim,
-        delta,
-        output_mask,
-        noise_std=0.0,
-        **kwargs,
+        data: list[dict],
+        state_dim: int,
+        control_dim: int,
+        output_dim: int,
+        delta: float,
+        output_mask: tuple[int, ...],
+        noise_std: float = 0.0,
     ):
-        self.__dict__.update(kwargs)
-
-        n_traj = len(data)
+        self.n_traj = len(data)
         self.state_dim = state_dim
         self.control_dim = control_dim
         self.output_dim = output_dim
         self.delta = delta
         self.mask = output_mask
 
-        self.init_state = torch.empty((n_traj, self.state_dim)).type(
+        self.init_state = torch.empty((self.n_traj, self.state_dim)).type(
             torch.get_default_dtype()
         )
-        self.init_state_noise = torch.empty((n_traj, self.state_dim)).type(
+        self.init_state_noise = torch.empty((self.n_traj, self.state_dim)).type(
             torch.get_default_dtype()
         )
 
@@ -40,7 +50,9 @@ class RawTrajectoryDataset(Dataset):
             self.init_state[k] = torch.from_numpy(
                 sample["init_state"].reshape((1, self.state_dim))
             )
+
             self.init_state_noise[k] = 0.0
+
             self.time.append(
                 torch.from_numpy(sample["time"])
                 .type(torch.get_default_dtype())
@@ -66,22 +78,23 @@ class RawTrajectoryDataset(Dataset):
             )
 
     def __len__(self):
-        return len(self.init_state)
+        return self.n_traj
 
     def __getitem__(self, index):
         return (
-            self.init_state[index],
-            self.init_state_noise[index],
+            self.init_state[index] + self.init_state_noise[index],
             self.time[index],
-            self.state[index],
-            self.state_noise[index],
+            self.state[index] + self.state_noise[index],
             self.control_seq[index],
         )
 
 
 class TrajectoryDataset(Dataset):
     def __init__(
-        self, raw_data: RawTrajectoryDataset, max_seq_len=-1, n_samples=1
+        self,
+        raw_data: RawTrajectoryDataset,
+        max_seq_len: int = -1,
+        n_samples: int = 1,
     ):
         self.state_dim = raw_data.state_dim
         self.control_dim = raw_data.control_dim
@@ -97,12 +110,7 @@ class TrajectoryDataset(Dataset):
 
         rng = np.random.default_rng()
 
-        k_tr = 0
-
-        for x0, x0_n, t, y, y_n, u in raw_data:
-            y += y_n
-            x0 += x0_n
-
+        for x0, t, y, u in raw_data:
             if max_seq_len == -1:
                 for k_s, y_s in enumerate(y):
                     rnn_input, rnn_input_len = self.process_example(
