@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
+from math import floor
 
 
 class RawTrajectoryDataset(Dataset):
@@ -106,6 +107,7 @@ class TrajectoryDataset(Dataset):
         init_state = []
         state = []
         rnn_input_data = []
+        tau_data = []
         seq_len_data = []
 
         rng = np.random.default_rng()
@@ -113,7 +115,7 @@ class TrajectoryDataset(Dataset):
         for x0, t, y, u in raw_data:
             if max_seq_len == -1:
                 for k_s, y_s in enumerate(y):
-                    rnn_input, rnn_input_len = self.process_example(
+                    rnn_input, tau, rnn_input_len = make_rnn_inputs(
                         0, k_s, t, u, self.delta
                     )
 
@@ -123,6 +125,7 @@ class TrajectoryDataset(Dataset):
                     state.append(s)
                     seq_len_data.append(rnn_input_len)
                     rnn_input_data.append(rnn_input)
+                    tau_data.append(tau)
 
             else:
                 for k_s, y_s in enumerate(y):
@@ -141,7 +144,7 @@ class TrajectoryDataset(Dataset):
                         )
 
                     for k_e in end_idxs:
-                        rnn_input, rnn_input_len = self.process_example(
+                        rnn_input, tau, rnn_input_len = make_rnn_inputs(
                             k_s, k_s + k_e, t, u, self.delta
                         )
 
@@ -149,44 +152,23 @@ class TrajectoryDataset(Dataset):
                         state.append(y[k_s + k_e, mask])
                         seq_len_data.append(rnn_input_len)
                         rnn_input_data.append(rnn_input)
+                        tau_data.append(tau)
 
         self.init_state = torch.stack(init_state).type(
             torch.get_default_dtype()
         )
+
         self.state = torch.stack(state).type(torch.get_default_dtype())
+
         self.rnn_input = torch.stack(rnn_input_data).type(
             torch.get_default_dtype()
         )
+
+        self.tau = torch.stack(tau_data).type(torch.get_default_dtype())
+
         self.seq_lens = torch.tensor(seq_len_data, dtype=torch.long)
 
         self.len = len(init_state)
-
-    @staticmethod
-    def process_example(start_idx, end_idx, t, u, delta):
-        init_time = 0.0
-
-        u_start_idx = int(np.floor((t[start_idx] - init_time) / delta))
-        u_end_idx = int(np.floor((t[end_idx] - init_time) / delta))
-        u_sz = 1 + u_end_idx - u_start_idx
-
-        u_seq = torch.zeros_like(u)
-        u_seq[0:u_sz] = u[u_start_idx : (u_end_idx + 1)]
-
-        deltas = torch.ones((u_seq.shape[0], 1))
-        t_u_end = init_time + delta * u_end_idx
-        t_u_start = init_time + delta * u_start_idx
-
-        if u_sz > 1:
-            deltas[0] = (1.0 - (t[start_idx] - t_u_start) / delta).item()
-            deltas[u_sz - 1] = ((t[end_idx] - t_u_end) / delta).item()
-        else:
-            deltas[0] = ((t[end_idx] - t[start_idx]) / delta).item()
-
-        deltas[u_sz:] = 0.0
-
-        rnn_input = torch.hstack((u_seq, deltas))
-
-        return rnn_input, u_sz
 
     def __len__(self):
         return self.len
@@ -196,5 +178,35 @@ class TrajectoryDataset(Dataset):
             self.init_state[index],
             self.state[index],
             self.rnn_input[index],
+            self.tau[index],
             self.seq_lens[index],
         )
+
+
+def make_rnn_inputs(
+    start_idx: int, end_idx: int, t: Tensor, u: Tensor, delta: float
+) -> tuple[Tensor, Tensor, int]:
+    init_time = 0.0
+
+    u_start_idx = floor((t[start_idx] - init_time) / delta)
+    u_end_idx = floor((t[end_idx] - init_time) / delta)
+    u_sz = 1 + u_end_idx - u_start_idx
+
+    u_seq = torch.zeros_like(u)
+    u_seq[0:u_sz] = u[u_start_idx : (u_end_idx + 1)]
+
+    tau_seq = torch.ones((u_seq.shape[0], 1))
+    t_u_end = init_time + delta * u_end_idx
+    t_u_start = init_time + delta * u_start_idx
+
+    if u_sz > 1:
+        tau_seq[0] = (1.0 - (t[start_idx] - t_u_start) / delta).item()
+        tau_seq[u_sz - 1] = ((t[end_idx] - t_u_end) / delta).item()
+    else:
+        tau_seq[0] = ((t[end_idx] - t[start_idx]) / delta).item()
+
+    tau_seq[u_sz:] = 0.0
+
+    rnn_input = torch.hstack((u_seq, tau_seq))
+
+    return rnn_input, tau_seq, u_sz

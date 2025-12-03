@@ -1,11 +1,10 @@
 import torch
 
 
-def prep_inputs(x0, y, rnn_input, lengths, device):
-    tau = rnn_input[range(rnn_input.shape[0]), lengths - 1, -1].unsqueeze(-1)
-
+def prep_inputs(x0, y, rnn_input, tau, lengths, device):
     rnn_input_padded = torch.nn.utils.rnn.pack_padded_sequence(
-        rnn_input, lengths, batch_first=True, enforce_sorted=False)
+        rnn_input, lengths, batch_first=True, enforce_sorted=False
+    )
 
     x0 = x0.to(device)
     y = y.to(device)
@@ -16,7 +15,7 @@ def prep_inputs(x0, y, rnn_input, lengths, device):
 
 
 def validate(data, loss_fn, model, device):
-    vl = 0.
+    vl = 0.0
 
     with torch.no_grad():
         for example in data:
@@ -43,12 +42,11 @@ def train_step(example, loss_fn, model, optimizer, device):
 
 
 class EarlyStopping:
-
-    def __init__(self, es_patience, es_delta=0.):
+    def __init__(self, es_patience, es_delta=0.0):
         self.patience = es_patience
         self.delta = es_delta
 
-        self.best_val_loss = float('inf')
+        self.best_val_loss = float("inf")
         self.counter = 0
         self.early_stop = False
         self.best_model = False
