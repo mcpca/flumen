@@ -1,7 +1,5 @@
 import torch
-import numpy as np
 from argparse import ArgumentParser, ArgumentTypeError
-from .model import CausalFlowModel
 
 
 def print_gpu_info():
@@ -33,7 +31,10 @@ def get_arg_parser():
     )
 
     model_args.add_argument(
-        "--control_rnn_depth", type=positive_int, help="Depth of the RNN", default=1
+        "--control_rnn_depth",
+        type=positive_int,
+        help="Depth of the RNN",
+        default=1,
     )
 
     model_args.add_argument(
@@ -44,7 +45,10 @@ def get_arg_parser():
     )
 
     model_args.add_argument(
-        "--encoder_depth", type=positive_int, help="Depth of the encoder", required=True
+        "--encoder_depth",
+        type=positive_int,
+        help="Depth of the encoder",
+        required=True,
     )
 
     model_args.add_argument(
@@ -55,7 +59,10 @@ def get_arg_parser():
     )
 
     model_args.add_argument(
-        "--decoder_depth", type=positive_int, help="Depth of the decoder", required=True
+        "--decoder_depth",
+        type=positive_int,
+        help="Depth of the decoder",
+        required=True,
     )
 
     opt_args.add_argument(
@@ -70,7 +77,10 @@ def get_arg_parser():
     )
 
     opt_args.add_argument(
-        "--n_epochs", type=positive_int, help="Max number of epochs", required=True
+        "--n_epochs",
+        type=positive_int,
+        help="Max number of epochs",
+        required=True,
     )
 
     opt_args.add_argument(
