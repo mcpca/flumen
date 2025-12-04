@@ -209,4 +209,4 @@ def make_rnn_inputs(
 
     rnn_input = torch.hstack((u_seq, tau_seq))
 
-    return rnn_input, tau_seq, u_sz
+    return rnn_input, tau_seq[u_sz - 1], u_sz
