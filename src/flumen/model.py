@@ -58,6 +58,8 @@ class CausalFlowModel(nn.Module):
             rnn_out_seq_packed, batch_first=True
         )
 
+        lengths = lengths.to(h.device)
+
         # get next to last state (possibly h0)
         h_prev = h[range(h.shape[0]), lengths - 2, :]
         h_prev = torch.where(lengths.unsqueeze(-1) > 1, h_prev, h0[-1])
