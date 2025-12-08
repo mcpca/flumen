@@ -1,7 +1,7 @@
 import torch
 
 
-def prep_inputs(x0, y, rnn_input, tau, lengths, device):
+def prep_inputs(y, x0, rnn_input, tau, lengths, device):
     rnn_input_padded = torch.nn.utils.rnn.pack_padded_sequence(
         rnn_input, lengths, batch_first=True, enforce_sorted=False
     )
@@ -11,15 +11,15 @@ def prep_inputs(x0, y, rnn_input, tau, lengths, device):
     rnn_input_padded = rnn_input_padded.to(device)
     tau = tau.to(device)
 
-    return x0, y, rnn_input_padded, tau
+    return y, x0, rnn_input_padded, tau
 
 
 def validate(data, loss_fn, model, device):
     vl = 0.0
 
     with torch.no_grad():
-        for example in data:
-            x0, y, rnn_input, tau = prep_inputs(*example, device)
+        for y, *inputs in data:
+            y, x0, rnn_input, tau = prep_inputs(y, *inputs, device)
 
             y_pred = model(x0, rnn_input, tau)
             vl += loss_fn(y, y_pred).item()
@@ -28,7 +28,7 @@ def validate(data, loss_fn, model, device):
 
 
 def train_step(example, loss_fn, model, optimizer, device):
-    x0, y, rnn_input, tau = prep_inputs(*example, device)
+    y, x0, rnn_input, tau = prep_inputs(*example, device)
 
     optimizer.zero_grad()
 

@@ -175,8 +175,8 @@ class TrajectoryDataset(Dataset):
 
     def __getitem__(self, index):
         return (
-            self.init_state[index],
             self.state[index],
+            self.init_state[index],
             self.rnn_input[index],
             self.tau[index],
             self.seq_lens[index],
