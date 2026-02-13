@@ -1,15 +1,15 @@
+import pickle
+from argparse import ArgumentParser, ArgumentTypeError
+from pathlib import Path
+
 import torch
+import yaml
+from scipy.signal import find_peaks
+from semble import TrajectorySampler, TSamplerSpec, make_trajectory_sampler
+
+from flumen import RawTrajectoryDataset
 
 torch.set_default_dtype(torch.float32)
-
-import pickle, yaml
-from pathlib import Path
-from argparse import ArgumentParser, ArgumentTypeError
-
-from scipy.signal import find_peaks
-
-from semble import TrajectorySampler, TSamplerSpec, make_trajectory_sampler
-from flumen import RawTrajectoryDataset
 
 
 def main():
@@ -145,22 +145,11 @@ def parse_args():
     )
 
     ap.add_argument(
-        "--noise_std",
-        type=float,
-        help="Standard deviation of measurement noise",
-        default=0.0,
-    )
-
-    ap.add_argument(
-        "--noise_seed", type=int, help="Measurement noise seed", default=None
-    )
-
-    ap.add_argument(
         "--data_split",
         nargs=2,
         type=percentage,
         help="Percentage of data used for validation and test sets",
-        default=[20, 20],
+        default=[10, 10],
     )
 
     return ap.parse_args()
@@ -198,7 +187,6 @@ def generate(args, trajectory_sampler: TrajectorySampler, postprocess=[]):
         *trajectory_sampler.dims(),
         delta=trajectory_sampler._delta,
         output_mask=trajectory_sampler._dyn.mask,
-        noise_std=args.noise_std,
     )
 
     val_data = RawTrajectoryDataset(
@@ -206,7 +194,6 @@ def generate(args, trajectory_sampler: TrajectorySampler, postprocess=[]):
         *trajectory_sampler.dims(),
         delta=trajectory_sampler._delta,
         output_mask=trajectory_sampler._dyn.mask,
-        noise_std=args.noise_std,
     )
 
     test_data = RawTrajectoryDataset(
@@ -214,7 +201,6 @@ def generate(args, trajectory_sampler: TrajectorySampler, postprocess=[]):
         *trajectory_sampler.dims(),
         delta=trajectory_sampler._delta,
         output_mask=trajectory_sampler._dyn.mask,
-        noise_std=args.noise_std,
     )
 
     for d in (train_data, val_data, test_data):

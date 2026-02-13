@@ -12,10 +12,8 @@ class RawTrajectoryDataset(Dataset):
     output_dim: int
     mask: tuple[int, ...]
     init_state: Tensor
-    init_state_noise: Tensor
     time: list[Tensor]
     state: list[Tensor]
-    state_noise: list[Tensor]
     control_seq: list[Tensor]
 
     def __init__(
@@ -26,7 +24,6 @@ class RawTrajectoryDataset(Dataset):
         output_dim: int,
         delta: float,
         output_mask: tuple[int, ...],
-        noise_std: float = 0.0,
     ):
         self.n_traj = len(data)
         self.state_dim = state_dim
@@ -38,21 +35,15 @@ class RawTrajectoryDataset(Dataset):
         self.init_state = torch.empty((self.n_traj, self.state_dim)).type(
             torch.get_default_dtype()
         )
-        self.init_state_noise = torch.empty((self.n_traj, self.state_dim)).type(
-            torch.get_default_dtype()
-        )
 
         self.time = []
         self.state = []
-        self.state_noise = []
         self.control_seq = []
 
         for k, sample in enumerate(data):
             self.init_state[k] = torch.from_numpy(
                 sample["init_state"].reshape((1, self.state_dim))
             )
-
-            self.init_state_noise[k] = 0.0
 
             self.time.append(
                 torch.from_numpy(sample["time"])
@@ -66,12 +57,6 @@ class RawTrajectoryDataset(Dataset):
                 .reshape((-1, self.state_dim))
             )
 
-            self.state_noise.append(
-                torch.normal(
-                    mean=0.0, std=noise_std, size=self.state[-1].size()
-                )
-            )
-
             self.control_seq.append(
                 torch.from_numpy(sample["control"])
                 .type(torch.get_default_dtype())
@@ -83,9 +68,9 @@ class RawTrajectoryDataset(Dataset):
 
     def __getitem__(self, index):
         return (
-            self.init_state[index] + self.init_state_noise[index],
+            self.init_state[index],
             self.time[index],
-            self.state[index] + self.state_noise[index],
+            self.state[index],
             self.control_seq[index],
         )
 
