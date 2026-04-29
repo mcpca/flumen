@@ -1,5 +1,7 @@
 # A neural architecture for approximating flows of dynamical systems with inputs
 
+### JAX implementation: [mcpca/flumen-jax](https://github.com/mcpca/flumen-jax).
+
 See our paper [Miguel Aguiar, Amritam Das and Karl H. Johansson, _Learning Flow Functions from Data with Applications to Nonlinear Oscillators_ (2023)](https://www.sciencedirect.com/science/article/pii/S240589632302147X) for a description of the architecture.
 
 The `flumen` package provides the PyTorch module implementing the architecture,
